@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 import { GoogleAuth } from "google-auth-library";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 export const runtime = "nodejs";
+
+type ServiceAccountCredentials = {
+  client_email?: string;
+  private_key?: string;
+  project_id?: string;
+};
 
 function stripDataUrlPrefix(value: string) {
   return value.replace(/^data:[^;]+;base64,/, "");
@@ -14,6 +20,50 @@ function resolveCredentialsPath() {
   return path.isAbsolute(process.env.GOOGLE_APPLICATION_CREDENTIALS)
     ? process.env.GOOGLE_APPLICATION_CREDENTIALS
     : path.resolve(process.cwd(), process.env.GOOGLE_APPLICATION_CREDENTIALS);
+}
+
+function parseServiceAccountJson() {
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON?.trim();
+  if (!raw) return null;
+
+  try {
+    const jsonText = raw.startsWith("{") ? raw : Buffer.from(raw, "base64").toString("utf8");
+    const credentials = JSON.parse(jsonText) as ServiceAccountCredentials;
+    if (!credentials.client_email || !credentials.private_key) {
+      throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON must include client_email and private_key.");
+    }
+    return {
+      ...credentials,
+      private_key: credentials.private_key.replace(/\\n/g, "\n")
+    };
+  } catch (error) {
+    throw new Error(
+      error instanceof Error
+        ? `Invalid GOOGLE_SERVICE_ACCOUNT_JSON: ${error.message}`
+        : "Invalid GOOGLE_SERVICE_ACCOUNT_JSON."
+    );
+  }
+}
+
+function loadCredentialsFromPath() {
+  const credentialsPath = resolveCredentialsPath();
+  if (!credentialsPath) return null;
+  if (!existsSync(credentialsPath)) {
+    throw new Error(`GOOGLE_APPLICATION_CREDENTIALS file not found: ${credentialsPath}`);
+  }
+
+  const credentials = JSON.parse(readFileSync(credentialsPath, "utf8")) as ServiceAccountCredentials;
+  if (!credentials.client_email || !credentials.private_key) {
+    throw new Error("GOOGLE_APPLICATION_CREDENTIALS file must include client_email and private_key.");
+  }
+  return {
+    ...credentials,
+    private_key: credentials.private_key.replace(/\\n/g, "\n")
+  };
+}
+
+function loadVisionCredentials() {
+  return parseServiceAccountJson() ?? loadCredentialsFromPath();
 }
 
 function getErrorMessage(error: unknown) {
@@ -46,11 +96,13 @@ function getGoogleApiError(value: unknown) {
 
 export async function GET() {
   const credentialsPath = resolveCredentialsPath();
+  const hasJsonCredentials = Boolean(process.env.GOOGLE_SERVICE_ACCOUNT_JSON?.trim());
 
   return NextResponse.json({
     success: true,
     projectId: process.env.GOOGLE_CLOUD_PROJECT || null,
-    credentialsConfigured: Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS),
+    credentialsConfigured: hasJsonCredentials || Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS),
+    credentialsSource: hasJsonCredentials ? "GOOGLE_SERVICE_ACCOUNT_JSON" : process.env.GOOGLE_APPLICATION_CREDENTIALS ? "GOOGLE_APPLICATION_CREDENTIALS" : null,
     credentialsPath,
     credentialsFileExists: credentialsPath ? existsSync(credentialsPath) : false
   });
@@ -80,32 +132,27 @@ async function imageBufferFromRequest(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
       return NextResponse.json(
         {
           success: false,
-          error: "Google Vision credentials are not configured. Set GOOGLE_APPLICATION_CREDENTIALS."
-        },
-        { status: 500 }
-      );
-    }
-
-    const credentialsPath = resolveCredentialsPath();
-
-    if (!credentialsPath || !existsSync(credentialsPath)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `GOOGLE_APPLICATION_CREDENTIALS file not found: ${credentialsPath}`
+          error: "Google Vision credentials are not configured. Set GOOGLE_SERVICE_ACCOUNT_JSON on Vercel or GOOGLE_APPLICATION_CREDENTIALS locally."
         },
         { status: 500 }
       );
     }
 
     const imageBuffer = await imageBufferFromRequest(request);
+    const credentials = loadVisionCredentials();
+    const projectId = process.env.GOOGLE_CLOUD_PROJECT || credentials?.project_id;
+
+    if (!credentials) {
+      throw new Error("Google Vision credentials are not configured.");
+    }
+
     const auth = new GoogleAuth({
-      projectId: process.env.GOOGLE_CLOUD_PROJECT,
-      keyFilename: credentialsPath,
+      projectId,
+      credentials,
       scopes: ["https://www.googleapis.com/auth/cloud-platform"]
     });
     const accessToken = await auth.getAccessToken();

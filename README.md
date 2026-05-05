@@ -99,6 +99,19 @@ GOOGLE_CLOUD_PROJECT=your-google-cloud-project-id
 GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account-key.json
 ```
 
+For Vercel or other serverless deployments, do not use a local file path. Add the full service account JSON to the deployment environment instead:
+
+```env
+GOOGLE_CLOUD_PROJECT=your-google-cloud-project-id
+GOOGLE_SERVICE_ACCOUNT_JSON=your-one-line-service-account-json-or-base64-json
+```
+
+If pasting raw JSON into Vercel is awkward, base64 encode the JSON file and use that value:
+
+```bash
+base64 -i /absolute/path/to/service-account-key.json | tr -d '\n'
+```
+
 8. Install dependencies:
 
 ```bash
