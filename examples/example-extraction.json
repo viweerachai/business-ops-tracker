@@ -1,0 +1,41 @@
+{
+  "storeName": "ブックオフ SUPER BAZAAR",
+  "purchaseDate": "2026-04-20",
+  "subtotal": 3125,
+  "tax": 312,
+  "total": 3437,
+  "ocrLanguage": "jpn+eng",
+  "ocrText": "ブックオフ SUPER BAZAAR\n2026年04月20日\nポケモンカード 拡張パック 3点 540\n一番くじ ワンピース フィギュア 1点 1,980\n午後の紅茶 ミルクティー 1点 160\n小計 3,125\n消費税 312\n合計 3,437",
+  "items": [
+    {
+      "rawName": "ポケモンカード 拡張パック",
+      "displayName": "ポケモンカード 拡張パック",
+      "category": "Trading Card",
+      "quantity": 3,
+      "unitPrice": 180,
+      "totalPrice": 540,
+      "isResaleItem": true,
+      "memo": ""
+    },
+    {
+      "rawName": "一番くじ ワンピース フィギュア",
+      "displayName": "一番くじ ワンピース フィギュア",
+      "category": "Ichiban Kuji",
+      "quantity": 1,
+      "unitPrice": 1980,
+      "totalPrice": 1980,
+      "isResaleItem": true,
+      "memo": ""
+    },
+    {
+      "rawName": "午後の紅茶 ミルクティー",
+      "displayName": "午後の紅茶 ミルクティー",
+      "category": "Food",
+      "quantity": 1,
+      "unitPrice": 160,
+      "totalPrice": 160,
+      "isResaleItem": false,
+      "memo": ""
+    }
+  ]
+}

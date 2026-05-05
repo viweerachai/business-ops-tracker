@@ -1,0 +1,16 @@
+{
+  "name": "Local Receipt Reader",
+  "short_name": "Receipts",
+  "description": "Local-first receipt OCR for Japan resellers",
+  "start_url": "/receipts/new",
+  "display": "standalone",
+  "background_color": "#f9f7f2",
+  "theme_color": "#0d736b",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
