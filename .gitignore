@@ -1,20 +1,26 @@
 # Dependencies
 node_modules/
 functions/node_modules/
+/.pnp
+.pnp.js
 
 # Next.js
 .next/
 out/
+next-env.d.ts
 tsconfig.tsbuildinfo
+*.tsbuildinfo
 
 # Production / build output
 dist/
 build/
+coverage/
 
 # Environment and secrets
 .env
 .env.local
 .env.*.local
+.env*.local
 *.local
 
 # Google / Firebase / service account keys
@@ -42,6 +48,11 @@ firebase-debug.log
 firestore-debug.log
 ui-debug.log
 
+# Vercel / Firebase local
+.vercel/
+.firebase/
+firebase-export-*/
+
 # OS / editor
 .DS_Store
 Thumbs.db
@@ -49,10 +60,6 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
-
-# Local Firebase emulator data
-.firebase/
-firebase-export-*/
 
 # Temporary files
 *.tmp
