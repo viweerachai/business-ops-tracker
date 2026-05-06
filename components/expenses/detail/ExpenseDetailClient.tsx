@@ -3,12 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, FileText, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CreateExpenseFooter } from "@/components/expenses/new/CreateExpenseFooter";
 import { DocumentPreviewCard } from "@/components/expenses/new/DocumentPreviewCard";
-import { ExpenseFormCard } from "@/components/expenses/new/ExpenseFormCard";
+import { ExpenseSummarySection } from "@/components/expenses/ExpenseSummarySection";
+import { isCurrencyCode, patchSummaryAmounts } from "@/components/expenses/expenseSummaryUtils";
+import { ExpenseEditFormCard } from "@/components/expenses/detail/ExpenseEditFormCard";
 import { ExpenseItemsCard } from "@/components/expenses/new/ExpenseItemsCard";
 import {
   defaultExpenseForm,
@@ -17,6 +20,7 @@ import {
   type ExpenseProcessingStatus
 } from "@/components/expenses/new/types";
 import { useBusinesses } from "@/hooks/useBusinesses";
+import { canCallVision, getVisionUsage, incrementVisionUsage } from "@/lib/local/vision-usage";
 import {
   getExpenseWithItemsDoc,
   updateExpenseWithItemsDoc
@@ -38,6 +42,10 @@ type GoogleUploadResponse =
       } | null;
       imageFileName?: string;
     }
+  | { success: false; error?: string };
+
+type VisionOcrResponse =
+  | { success: true; ocrText: string }
   | { success: false; error?: string };
 
 type HeicConverter = (options: {
@@ -91,7 +99,21 @@ function driveImagePreviewUrl(expense: ExpenseWithItems | null) {
   return expense.imageDriveUrl || null;
 }
 
+function driveImageDownloadUrl(expense: ExpenseWithItems | null) {
+  if (!expense?.imageDriveFileId) return null;
+  const fileName = `receipt-${expense.id}.jpg`;
+  return `/api/google/drive-image/${encodeURIComponent(expense.imageDriveFileId)}?download=1&name=${encodeURIComponent(fileName)}`;
+}
+
 function formFromExpense(expense: ExpenseWithItems): ExpenseFormState {
+  const originalCurrency = isCurrencyCode(expense.originalCurrency) ? expense.originalCurrency : expense.currency;
+  const baseCurrency = isCurrencyCode(expense.baseCurrency) ? expense.baseCurrency : "THB";
+  const exchangeRate = expense.exchangeRate ?? (originalCurrency === baseCurrency ? 1 : 1);
+  const subtotalOriginal = expense.subtotalOriginal ?? expense.subtotal ?? 0;
+  const vatOriginal = expense.vatOriginal ?? expense.tax ?? 0;
+  const whtOriginal = expense.whtOriginal ?? expense.withholdingTax ?? 0;
+  const totalOriginal = expense.totalOriginal ?? expense.total ?? 0;
+
   return {
     ...defaultExpenseForm,
     receiptDate: expense.purchaseDate,
@@ -100,14 +122,28 @@ function formFromExpense(expense: ExpenseWithItems): ExpenseFormState {
     documentType: documentTypeToForm(expense.documentType),
     category: receiptCategory(expense.categorySummary),
     paymentStatus: paymentStatusToForm(expense.paymentStatus),
-    amount: expense.total,
-    currency: expense.currency,
+    amount: totalOriginal,
+    currency: originalCurrency,
+    originalCurrency,
+    baseCurrency,
+    exchangeRate,
+    exchangeRateSource: "manual",
+    exchangeRateDate: expense.exchangeRateDate ?? null,
+    manualAmountOverride: expense.manualAmountOverride ?? true,
+    subtotalOriginal,
+    vatOriginal,
+    whtOriginal,
+    totalOriginal,
+    subtotalBase: expense.subtotalBase ?? subtotalOriginal * exchangeRate,
+    vatBase: expense.vatBase ?? vatOriginal * exchangeRate,
+    whtBase: expense.whtBase ?? whtOriginal * exchangeRate,
+    totalBase: expense.totalBase ?? totalOriginal * exchangeRate,
     requester: expense.requesterName || expense.payerName,
     hasTaxInvoice: expense.hasTaxInvoice ?? false,
     invoiceNumber: expense.invoiceNumber ?? "",
-    subtotal: expense.subtotal ?? 0,
-    tax: expense.tax ?? 0,
-    withholdingTax: expense.withholdingTax ?? 0,
+    subtotal: subtotalOriginal,
+    tax: vatOriginal,
+    withholdingTax: whtOriginal,
     expenseType: expense.expenseType || "รายจ่าย",
     subCategory: expense.subCategory ?? "",
     vendorName: expense.vendorName || expense.storeName,
@@ -131,6 +167,26 @@ function itemsFromExpense(expense: ExpenseWithItems): ExpenseItemState[] {
     isResaleItem: item.isResaleItem,
     memo: item.memo ?? ""
   }));
+}
+
+function StepLabel({
+  step,
+  title,
+  description
+}: {
+  step: number;
+  title: string;
+  description?: string;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <Badge className="mt-0.5 rounded-full bg-blue-50 px-3 py-1 text-blue-700">Step {step}</Badge>
+      <div className="min-w-0">
+        <h2 className="text-lg font-black text-slate-950">{title}</h2>
+        {description ? <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p> : null}
+      </div>
+    </div>
+  );
 }
 
 function blobToDataUrl(blob: Blob) {
@@ -158,6 +214,56 @@ async function imageFileToDataUrl(file: File) {
     quality: 0.9
   });
   return blobToDataUrl(Array.isArray(converted) ? converted[0] : converted);
+}
+
+function loadImage(dataUrl: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Cannot load receipt image."));
+    image.src = dataUrl;
+  });
+}
+
+function dataUrlToBlob(dataUrl: string) {
+  const [header, base64] = dataUrl.split(",");
+  const mime = header.match(/data:(.*?);base64/)?.[1] || "image/jpeg";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return new Blob([bytes], { type: mime });
+}
+
+async function compressImageForVision(dataUrl: string, maxWidth = 1600, quality = 0.82) {
+  const image = await loadImage(dataUrl);
+  const scale = Math.min(1, maxWidth / Math.max(image.width, image.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(image.width * scale);
+  canvas.height = Math.round(image.height * scale);
+  const context = canvas.getContext("2d");
+  if (!context) return dataUrlToBlob(dataUrl);
+
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+  return new Promise<Blob>((resolve) => {
+    canvas.toBlob((blob) => resolve(blob ?? dataUrlToBlob(dataUrl)), "image/jpeg", quality);
+  });
+}
+
+async function imageSourceToVisionBlob(source: string) {
+  if (source.startsWith("data:image/")) {
+    return compressImageForVision(source);
+  }
+
+  const response = await fetch(source);
+  if (!response.ok) {
+    throw new Error("โหลดรูปใบเสร็จสำหรับ OCR ไม่สำเร็จ");
+  }
+  return response.blob();
 }
 
 async function parseJsonResponse<T>(response: Response, fallbackMessage: string) {
@@ -190,7 +296,7 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
   const [ocrText, setOcrText] = useState("");
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<ExpenseProcessingStatus>("idle");
-  const [message, setMessage] = useState("พร้อมแก้ไข");
+  const [, setMessage] = useState("พร้อมแก้ไข");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const companyName = activeBusiness?.name ?? "ธุรกิจของฉัน";
@@ -300,6 +406,56 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
     };
   }
 
+  async function handleRunVisionOcr() {
+    const sourceImage = previewImageUrl || replacementImageDataUrl;
+    if (!sourceImage) {
+      setError("ยังไม่มีรูปใบเสร็จสำหรับ OCR");
+      inputRef.current?.click();
+      return;
+    }
+
+    try {
+      setStatus("ocr");
+      setMessage("กำลังอ่านข้อความด้วย Google Vision...");
+      setError(null);
+
+      const usage = getVisionUsage();
+      if (!canCallVision(usage)) {
+        throw new Error("ถึงลิมิต OCR แล้ว กรุณารอหรือปรับ limit ใน Settings");
+      }
+
+      const imageBlob = await imageSourceToVisionBlob(sourceImage);
+      const formData = new FormData();
+      formData.append("image", imageBlob, fileName || "expense-receipt.jpg");
+
+      const visionResponse = await fetch("/api/vision/ocr", {
+        method: "POST",
+        body: formData
+      });
+      const visionResult = await parseJsonResponse<VisionOcrResponse>(
+        visionResponse,
+        "Google Vision OCR failed."
+      );
+
+      if (!visionResponse.ok || !visionResult.success) {
+        throw new Error(
+          visionResult.success
+            ? `Google Vision OCR failed with HTTP ${visionResponse.status}`
+            : visionResult.error || "Google Vision OCR failed."
+        );
+      }
+
+      incrementVisionUsage();
+      setOcrText(visionResult.ocrText.trim());
+      setStatus("done");
+      setMessage("อ่านข้อความใหม่แล้ว ตรวจ OCR ก่อนบันทึก");
+    } catch (err) {
+      setStatus("error");
+      setMessage("อ่าน OCR ไม่สำเร็จ");
+      setError(err instanceof Error ? err.message : "อ่าน OCR ไม่สำเร็จ");
+    }
+  }
+
   async function handleSave() {
     if (!user || !activeBusinessId) {
       setError("กรุณาเข้าสู่ระบบและเลือกธุรกิจก่อนบันทึก");
@@ -319,6 +475,7 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
       setMessage(replacementImageDataUrl ? "กำลังอัปโหลดรูปใหม่ไป Google Drive..." : "กำลังบันทึกข้อมูลไป Firestore...");
       setError(null);
       setSuccess(null);
+      const amountFields = patchSummaryAmounts(form, items);
       const imageFields = await uploadReplacementImage();
       setMessage("กำลังอัปเดตรายจ่ายใน Firestore...");
       await updateExpenseWithItemsDoc({
@@ -339,11 +496,25 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
           vendorBranchCode: form.vendorBranchCode,
           vendorAddress: form.vendorAddress,
           detail: form.detail,
-          subtotal: form.subtotal || null,
-          tax: form.tax || null,
-          withholdingTax: form.withholdingTax || null,
-          total: form.amount || null,
-          currency: form.currency,
+          subtotal: amountFields.subtotalOriginal || null,
+          tax: amountFields.vatOriginal || null,
+          withholdingTax: amountFields.whtOriginal || null,
+          total: amountFields.totalOriginal || null,
+          currency: form.originalCurrency,
+          originalCurrency: form.originalCurrency,
+          baseCurrency: form.baseCurrency,
+          exchangeRate: amountFields.exchangeRate,
+          exchangeRateSource: "manual",
+          exchangeRateDate: form.exchangeRateDate,
+          manualAmountOverride: form.manualAmountOverride,
+          subtotalOriginal: amountFields.subtotalOriginal,
+          vatOriginal: amountFields.vatOriginal,
+          whtOriginal: amountFields.whtOriginal,
+          totalOriginal: amountFields.totalOriginal,
+          subtotalBase: amountFields.subtotalBase,
+          vatBase: amountFields.vatBase,
+          whtBase: amountFields.whtBase,
+          totalBase: amountFields.totalBase,
           expenseType: form.expenseType || "รายจ่าย",
           category: form.category,
           subCategory: form.subCategory,
@@ -435,40 +606,55 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
 
         {!loading && expense ? (
           <>
-            <div className="grid content-start gap-5">
+            <div className="grid content-start gap-4 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto lg:pr-1">
+              <StepLabel
+                step={1}
+                title="ตรวจรูปใบเสร็จ"
+                description="ดูหลักฐานเดิม หรืออัปโหลดรูปใหม่ก่อนบันทึกการแก้ไข"
+              />
               <DocumentPreviewCard
                 imageDataUrl={previewImageUrl || placeholderImageDataUrl}
-                fileName={fileName}
                 status={status}
-                message={message}
                 error={error}
                 ocrText={ocrText}
+                openUrl={replacementImageDataUrl ? null : expense.imageDriveUrl}
+                downloadUrl={replacementImageDataUrl ? replacementImageDataUrl : driveImageDownloadUrl(expense)}
+                downloadFileName={fileName || `receipt-${expense.id}.jpg`}
                 onUploadClick={() => inputRef.current?.click()}
-                onRunVisionOcr={() => setError("ถ้าต้องการ OCR ใหม่ ให้อัปโหลดรูปแทนที่ก่อน แล้วใช้หน้าสร้างรายจ่ายสำหรับ OCR เต็มรูปแบบ")}
+                onRunVisionOcr={handleRunVisionOcr}
               />
-              <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
-                <CardContent className="p-4 md:p-5">
-                  <h2 className="text-lg font-black">OCR text</h2>
-                  {ocrText ? (
-                    <pre className="mt-4 max-h-80 overflow-auto whitespace-pre-wrap rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">
-                      {ocrText}
-                    </pre>
-                  ) : (
-                    <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">
-                      ไม่มี OCR text ในเอกสารนี้
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
             </div>
-            <div className="grid content-start gap-5">
+            <div className="grid content-start gap-6">
               {success ? (
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-700">
                   {success}
                 </div>
               ) : null}
-              <ExpenseFormCard form={form} onChange={setForm} companyName={companyName} />
-              <ExpenseItemsCard items={items} onChange={setItems} />
+              <ExpenseEditFormCard form={form} onChange={setForm} companyName={companyName} />
+
+              <section className="grid gap-3">
+                <StepLabel
+                  step={3}
+                  title="ตรวจรายการสินค้า"
+                  description="แก้ชื่อ จำนวน ราคา และหมวดหมู่ของแต่ละรายการก่อนบันทึก"
+                />
+                <ExpenseItemsCard
+                  items={items}
+                  onChange={setItems}
+                  originalCurrency={form.originalCurrency}
+                  baseCurrency={form.baseCurrency}
+                  exchangeRate={form.exchangeRate}
+                />
+              </section>
+
+              <section className="grid gap-3">
+                <StepLabel
+                  step={4}
+                  title="ตรวจยอดรวม"
+                  description="เช็กยอดชำระ ภาษี และอัตราแลกเปลี่ยนก่อนกดบันทึก"
+                />
+                <ExpenseSummarySection form={form} items={items} onChange={setForm} />
+              </section>
             </div>
           </>
         ) : null}

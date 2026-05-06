@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 export const runtime = "nodejs";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   {
     params
   }: {
@@ -42,11 +42,19 @@ export async function GET(
     }
 
     const contentType = response.headers.get("content-type") || "image/jpeg";
+    const url = new URL(request.url);
+    const shouldDownload = url.searchParams.get("download") === "1";
+    const fileName = url.searchParams.get("name") || "receipt-image.jpg";
+    const headers = new Headers({
+      "Content-Type": contentType,
+      "Cache-Control": "private, max-age=300"
+    });
+    if (shouldDownload) {
+      headers.set("Content-Disposition", `attachment; filename="${fileName.replace(/"/g, "")}"`);
+    }
+
     return new NextResponse(response.body, {
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "private, max-age=300"
-      }
+      headers
     });
   } catch (error) {
     return NextResponse.json(

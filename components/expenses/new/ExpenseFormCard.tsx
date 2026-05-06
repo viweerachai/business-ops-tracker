@@ -36,11 +36,6 @@ function Field({
   );
 }
 
-function numberValue(value: string) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
 export function ExpenseFormCard({
   form,
   onChange,
@@ -137,38 +132,12 @@ export function ExpenseFormCard({
           </Field>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-4">
-          <Field label="ยอดก่อนภาษี">
-            <Input inputMode="numeric" value={form.subtotal} onChange={(event) => update({ subtotal: numberValue(event.target.value) })} />
-          </Field>
-          <Field label="ภาษีมูลค่าเพิ่ม">
-            <Input inputMode="numeric" value={form.tax} onChange={(event) => update({ tax: numberValue(event.target.value) })} />
-          </Field>
-          <Field label="ภาษีหัก ณ ที่จ่าย">
-            <Input inputMode="numeric" value={form.withholdingTax} onChange={(event) => update({ withholdingTax: numberValue(event.target.value) })} />
-          </Field>
-          <Field label="ยอดชำระ" required>
-            <Input inputMode="numeric" value={form.amount} onChange={(event) => update({ amount: numberValue(event.target.value) })} />
-          </Field>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-[1fr_1fr_160px]">
+        <div className="grid gap-4 md:grid-cols-2">
           <Field label="ประเภทค่าใช้จ่าย">
             <Input value={form.expenseType} onChange={(event) => update({ expenseType: event.target.value })} />
           </Field>
           <Field label="หมวดหมู่ย่อย">
             <Input value={form.subCategory} onChange={(event) => update({ subCategory: event.target.value })} />
-          </Field>
-          <Field label="สกุลเงิน">
-            <Select value={form.currency} onValueChange={(value) => update({ currency: value as ExpenseFormState["currency"] })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="JPY">JPY</SelectItem>
-                <SelectItem value="THB">THB</SelectItem>
-              </SelectContent>
-            </Select>
           </Field>
         </div>
 

@@ -1,6 +1,6 @@
 export type ExpenseDocumentType = "ใบเสร็จรับเงิน" | "ใบกำกับภาษี" | "รายจ่ายอื่น ๆ";
 export type ExpensePaymentStatus = "draft" | "review_needed" | "paid" | "pending" | "failed";
-export type ExpenseCurrency = "JPY" | "THB";
+export type ExpenseCurrency = "JPY" | "THB" | "USD" | "EUR";
 export type ExpenseSyncStatus = "local" | "pending" | "synced" | "failed";
 
 export type BusinessPlan = "free" | "pro";
@@ -37,6 +37,20 @@ export type Expense = {
   withholdingTax?: number | null;
   total: number;
   currency: ExpenseCurrency;
+  originalCurrency?: ExpenseCurrency;
+  baseCurrency?: ExpenseCurrency;
+  exchangeRate?: number;
+  exchangeRateSource?: "manual";
+  exchangeRateDate?: string | null;
+  manualAmountOverride?: boolean;
+  subtotalOriginal?: number;
+  vatOriginal?: number;
+  whtOriginal?: number;
+  totalOriginal?: number;
+  subtotalBase?: number;
+  vatBase?: number;
+  whtBase?: number;
+  totalBase?: number;
   categorySummary: string;
   companyName?: string;
   invoiceNumber?: string;

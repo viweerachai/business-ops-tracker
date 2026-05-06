@@ -7,6 +7,8 @@ import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { Button } from "@/components/ui/button";
 import { CreateExpenseFooter } from "@/components/expenses/new/CreateExpenseFooter";
 import { DocumentPreviewCard } from "@/components/expenses/new/DocumentPreviewCard";
+import { ExpenseSummarySection } from "@/components/expenses/ExpenseSummarySection";
+import { patchSummaryAmounts } from "@/components/expenses/expenseSummaryUtils";
 import { ExpenseFormCard } from "@/components/expenses/new/ExpenseFormCard";
 import { ExpenseItemsCard } from "@/components/expenses/new/ExpenseItemsCard";
 import {
@@ -177,7 +179,7 @@ export function NewExpenseClient() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [ocrText, setOcrText] = useState("");
   const [status, setStatus] = useState<ExpenseProcessingStatus>("idle");
-  const [message, setMessage] = useState("พร้อมอ่าน OCR");
+  const [, setMessage] = useState("พร้อมอ่าน OCR");
   const [error, setError] = useState<string | null>(null);
   const [showGoogleDialog, setShowGoogleDialog] = useState(false);
   const companyName = activeBusiness?.name ?? "ธุรกิจของฉัน";
@@ -323,10 +325,15 @@ export function NewExpenseClient() {
         detail: data.items[0]?.displayName ? `ค่า ${data.items[0].displayName}` : current.detail,
         category: data.items[0]?.category ?? current.category,
         amount: extractedAmount || current.amount,
+        totalOriginal: extractedAmount || current.totalOriginal,
         subtotal: data.subtotal ?? current.subtotal,
+        subtotalOriginal: data.subtotal ?? current.subtotalOriginal,
         tax: data.tax ?? current.tax,
+        vatOriginal: data.tax ?? current.vatOriginal,
         vendorName: data.storeName ?? current.vendorName,
-        currency: "JPY"
+        currency: "JPY",
+        originalCurrency: "JPY",
+        exchangeRate: current.baseCurrency === "JPY" ? 1 : current.exchangeRate
       }));
       setItems(nextItems.length > 0 ? nextItems : items);
       setStatus("done");
@@ -349,14 +356,15 @@ export function NewExpenseClient() {
     imageDataUrlToSave: string;
     timestamp: string;
   }) {
+    const amountFields = patchSummaryAmounts(form, items);
     const receipt: Receipt = {
       id: expenseId,
       imageDataUrl: imageDataUrlToSave,
       storeName: form.storeName,
       purchaseDate: form.receiptDate || null,
-      subtotal: form.subtotal || null,
-      tax: form.tax || null,
-      total: form.amount,
+      subtotal: amountFields.subtotalOriginal || null,
+      tax: amountFields.vatOriginal || null,
+      total: amountFields.totalOriginal,
       aiMemo: form.note,
       ocrLanguage,
       ocrText,
@@ -393,11 +401,25 @@ export function NewExpenseClient() {
       detail: form.detail,
       payerName: form.requester || "ไม่ระบุ",
       paymentStatus: paymentStatusValue(form.paymentStatus),
-      subtotal: form.subtotal || null,
-      tax: form.tax || null,
-      withholdingTax: form.withholdingTax || null,
-      total: form.amount,
-      currency: form.currency,
+      subtotal: amountFields.subtotalOriginal || null,
+      tax: amountFields.vatOriginal || null,
+      withholdingTax: amountFields.whtOriginal || null,
+      total: amountFields.totalOriginal,
+      currency: form.originalCurrency,
+      originalCurrency: form.originalCurrency,
+      baseCurrency: form.baseCurrency,
+      exchangeRate: amountFields.exchangeRate,
+      exchangeRateSource: "manual",
+      exchangeRateDate: form.exchangeRateDate,
+      manualAmountOverride: form.manualAmountOverride,
+      subtotalOriginal: amountFields.subtotalOriginal,
+      vatOriginal: amountFields.vatOriginal,
+      whtOriginal: amountFields.whtOriginal,
+      totalOriginal: amountFields.totalOriginal,
+      subtotalBase: amountFields.subtotalBase,
+      vatBase: amountFields.vatBase,
+      whtBase: amountFields.whtBase,
+      totalBase: amountFields.totalBase,
       categorySummary: form.category,
       companyName,
       invoiceNumber: form.invoiceNumber,
@@ -461,6 +483,7 @@ export function NewExpenseClient() {
     const timestamp = new Date().toISOString();
     const nextImageDataUrl = imageDataUrl ?? placeholderImageDataUrl;
     const saveStepTimers: number[] = [];
+    const amountFields = patchSummaryAmounts(form, items);
 
     try {
       setStatus("saving");
@@ -520,11 +543,25 @@ export function NewExpenseClient() {
           vendorBranchCode: form.vendorBranchCode,
           vendorAddress: form.vendorAddress,
           detail: form.detail,
-          subtotal: form.subtotal || null,
-          tax: form.tax || null,
-          withholdingTax: form.withholdingTax || null,
-          total: form.amount || null,
-          currency: form.currency,
+          subtotal: amountFields.subtotalOriginal || null,
+          tax: amountFields.vatOriginal || null,
+          withholdingTax: amountFields.whtOriginal || null,
+          total: amountFields.totalOriginal || null,
+          currency: form.originalCurrency,
+          originalCurrency: form.originalCurrency,
+          baseCurrency: form.baseCurrency,
+          exchangeRate: amountFields.exchangeRate,
+          exchangeRateSource: "manual",
+          exchangeRateDate: form.exchangeRateDate,
+          manualAmountOverride: form.manualAmountOverride,
+          subtotalOriginal: amountFields.subtotalOriginal,
+          vatOriginal: amountFields.vatOriginal,
+          whtOriginal: amountFields.whtOriginal,
+          totalOriginal: amountFields.totalOriginal,
+          subtotalBase: amountFields.subtotalBase,
+          vatBase: amountFields.vatBase,
+          whtBase: amountFields.whtBase,
+          totalBase: amountFields.totalBase,
           expenseType: form.expenseType || "รายจ่าย",
           category: form.category,
           subCategory: form.subCategory,
@@ -591,17 +628,23 @@ export function NewExpenseClient() {
       <section className="mx-auto grid w-full max-w-[1440px] flex-1 grid-cols-1 gap-5 px-4 py-5 pb-28 md:px-8 lg:grid-cols-[minmax(360px,0.9fr)_minmax(520px,1.1fr)] lg:gap-7">
         <DocumentPreviewCard
           imageDataUrl={imageDataUrl}
-          fileName={fileName}
           status={status}
-          message={message}
           error={error}
           ocrText={ocrText}
+          downloadFileName={fileName}
           onUploadClick={() => inputRef.current?.click()}
           onRunVisionOcr={handleRunVisionOcr}
         />
         <div className="grid content-start gap-5">
           <ExpenseFormCard form={form} onChange={setForm} companyName={companyName} />
-          <ExpenseItemsCard items={items} onChange={setItems} />
+          <ExpenseItemsCard
+            items={items}
+            onChange={setItems}
+            originalCurrency={form.originalCurrency}
+            baseCurrency={form.baseCurrency}
+            exchangeRate={form.exchangeRate}
+          />
+          <ExpenseSummarySection form={form} items={items} onChange={setForm} />
         </div>
       </section>
 
