@@ -3,38 +3,49 @@
 @tailwind utilities;
 
 :root {
-  /* Brand */
+  /* Brand — teal */
   --primary: 168 72% 28%;
   --primary-foreground: 0 0% 100%;
-  --primary-light: 168 60% 92%;
+  --primary-light: 168 55% 94%;
 
   /* Background & surfaces */
-  --background: 220 20% 97%;
-  --foreground: 220 25% 10%;
+  --background: 220 18% 97%;
+  --foreground: 222 28% 9%;
   --card: 0 0% 100%;
-  --card-foreground: 220 25% 10%;
+  --card-foreground: 222 28% 9%;
 
   /* UI neutrals */
-  --muted: 220 16% 93%;
-  --muted-foreground: 220 12% 46%;
-  --border: 220 16% 88%;
-  --input: 220 16% 88%;
+  --muted: 220 14% 94%;
+  --muted-foreground: 220 10% 46%;
+  --border: 220 14% 90%;
+  --input: 220 14% 90%;
   --ring: 168 72% 28%;
 
   /* Accent & secondary */
-  --secondary: 168 30% 95%;
+  --secondary: 168 28% 95%;
   --secondary-foreground: 168 72% 20%;
-  --accent: 215 80% 56%;
+  --accent: 213 75% 54%;
   --accent-foreground: 0 0% 100%;
   --destructive: 0 68% 52%;
   --destructive-foreground: 0 0% 100%;
 
-  /* Sidebar */
-  --sidebar: 220 25% 10%;
-  --sidebar-foreground: 220 10% 75%;
+  /* Sidebar — dark panel */
+  --sidebar: 222 28% 9%;
+  --sidebar-foreground: 220 12% 68%;
   --sidebar-active: 168 72% 28%;
   --sidebar-active-foreground: 0 0% 100%;
-  --sidebar-border: 220 20% 16%;
+  --sidebar-border: 222 22% 15%;
+
+  /* Surface hierarchy */
+  --surface-1: 0 0% 100%;
+  --surface-2: 220 18% 97%;
+  --surface-3: 220 14% 94%;
+
+  /* Status colors */
+  --success: 152 58% 42%;
+  --success-foreground: 0 0% 100%;
+  --warning: 38 90% 52%;
+  --warning-foreground: 38 90% 10%;
 
   --radius: 0.75rem;
 }
@@ -60,10 +71,32 @@ button {
   font: inherit;
 }
 
+/* Page section title utility */
+.page-title {
+  font-size: 1.625rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: hsl(var(--foreground));
+  line-height: 1.2;
+}
+
+.page-subtitle {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.6;
+}
+
+/* Card surface helpers */
+.card-surface {
+  background: hsl(var(--surface-1));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -73,5 +106,18 @@ button {
   border-radius: 99px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground));
+  background: hsl(var(--muted-foreground) / 0.6);
+}
+
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+/* Smooth transitions for interactive elements */
+button, a, [role="button"] {
+  transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }

@@ -17,10 +17,10 @@ export function MobileBottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/98 backdrop-blur-sm lg:hidden"
-      style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/98 backdrop-blur-md lg:hidden"
+      style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
     >
-      <div className="mx-auto grid max-w-lg grid-cols-5 px-2 pt-2">
+      <div className="mx-auto grid max-w-lg grid-cols-5 px-1 pt-1.5">
         {navItems.map(({ href, label, icon: Icon, active, ...rest }) => {
           const isActive = active(pathname);
           const isPrimary = "isPrimary" in rest && rest.isPrimary;
@@ -30,12 +30,12 @@ export function MobileBottomNav() {
               <Link
                 key={href}
                 href={href}
-                className="flex flex-col items-center gap-1 py-1"
+                className="flex flex-col items-center gap-1 pb-1 pt-0.5"
                 aria-label={label}
               >
                 <div className={[
-                  "flex h-11 w-11 items-center justify-center rounded-2xl shadow-md transition-transform active:scale-95",
-                  isActive ? "bg-teal-700" : "bg-teal-600"
+                  "flex h-10 w-10 items-center justify-center rounded-xl shadow-sm transition-all active:scale-95",
+                  isActive ? "bg-teal-700 shadow-teal-200" : "bg-teal-600 hover:bg-teal-700"
                 ].join(" ")}>
                   <Icon className="h-5 w-5 text-white" />
                 </div>
@@ -50,15 +50,18 @@ export function MobileBottomNav() {
             <Link
               key={href}
               href={href}
-              className="flex flex-col items-center gap-1 py-1"
+              className="flex flex-col items-center gap-1 pb-1 pt-0.5"
             >
               <div className={[
-                "flex h-10 w-10 items-center justify-center rounded-xl transition-colors",
+                "flex h-10 w-10 items-center justify-center rounded-xl transition-all",
                 isActive ? "bg-teal-50" : "hover:bg-slate-100"
               ].join(" ")}>
-                <Icon className={["h-5 w-5 transition-colors", isActive ? "text-teal-600" : "text-slate-500"].join(" ")} />
+                <Icon className={[
+                  "h-5 w-5 transition-colors",
+                  isActive ? "text-teal-600" : "text-slate-400"
+                ].join(" ")} />
               </div>
-              <span className={`text-[10px] font-semibold transition-colors ${isActive ? "text-teal-700" : "text-slate-400"}`}>
+              <span className={`text-[10px] font-semibold ${isActive ? "text-teal-700" : "text-slate-400"}`}>
                 {label}
               </span>
             </Link>

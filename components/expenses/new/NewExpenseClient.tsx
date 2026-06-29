@@ -714,18 +714,34 @@ export function NewExpenseClient() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-[#F6F8FB] text-slate-900">
-      <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white/95 px-4 shadow-sm backdrop-blur md:px-8">
-        <div>
-          <h1 className="text-xl font-black tracking-normal md:text-2xl">สร้างรายจ่าย</h1>
-          <p className="hidden text-sm text-slate-500 sm:block">กรอกข้อมูลจากใบเสร็จและตรวจรายการก่อนบันทึก</p>
+    <main className="flex min-h-screen flex-col bg-background text-foreground">
+      <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white/98 px-4 shadow-sm backdrop-blur md:px-6">
+        <div className="flex items-center gap-2.5">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+            aria-label="Back"
+            onClick={handleCancel}
+          >
+            <X className="h-4.5 w-4.5" />
+          </Button>
+          <div>
+            <h1 className="text-[17px] font-bold tracking-tight text-slate-950">สร้างรายจ่ายใหม่</h1>
+            <p className="hidden text-[12px] text-slate-400 sm:block">กรอกข้อมูลจากใบเสร็จและตรวจรายการก่อนบันทึก</p>
+          </div>
         </div>
-        <Button variant="ghost" size="icon" className="rounded-full" aria-label="Close" onClick={handleCancel}>
-          <X className="h-6 w-6 text-slate-500" />
-        </Button>
+        <div className="flex items-center gap-2">
+          {status === "ocr" || status === "gemini" ? (
+            <div className="flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-[12px] font-semibold text-blue-700">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
+              {status === "ocr" ? "กำลังอ่าน OCR..." : "กำลังแปลงด้วย AI..."}
+            </div>
+          ) : null}
+        </div>
       </header>
 
-      <section className="mx-auto grid w-full max-w-[1440px] flex-1 grid-cols-1 gap-5 px-4 py-5 pb-28 md:px-8 lg:grid-cols-[minmax(360px,0.9fr)_minmax(520px,1.1fr)] lg:gap-7">
+      <section className="mx-auto grid w-full max-w-[1440px] flex-1 grid-cols-1 gap-5 px-4 py-5 pb-28 md:px-6 lg:grid-cols-[minmax(360px,0.9fr)_minmax(520px,1.1fr)] lg:gap-6">
         <DocumentPreviewCard
           imageDataUrl={imageDataUrl}
           status={status}
@@ -766,19 +782,26 @@ export function NewExpenseClient() {
       />
 
       {showGoogleDialog ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
-            <h2 className="text-lg font-black text-slate-950">ต้องเข้าสู่ระบบ Google</h2>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
+              <span className="text-xl">G</span>
+            </div>
+            <h2 className="text-[18px] font-bold text-slate-950">ต้องเข้าสู่ระบบ Google</h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">
               กรุณาเข้าสู่ระบบ Google เพื่อบันทึกรูปลง Google Drive และข้อมูลลง Firestore
             </p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <Button variant="outline" className="h-12 rounded-xl bg-white" onClick={() => setShowGoogleDialog(false)}>
+              <Button
+                variant="outline"
+                className="h-11 rounded-xl border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-50"
+                onClick={() => setShowGoogleDialog(false)}
+              >
                 ยกเลิก
               </Button>
               <GoogleSignInButton
                 callbackUrl="/expenses/new"
-                className="h-12 justify-center"
+                className="h-11 justify-center rounded-xl"
                 onBeforeSignIn={saveDraftBeforeGoogleSignIn}
               />
             </div>

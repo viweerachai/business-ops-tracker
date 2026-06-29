@@ -59,15 +59,15 @@ function expenseIcon(expense: Expense) {
 
 function LoadingMobile() {
   return (
-    <main className="min-h-[100dvh] bg-[#F5F7FB] px-4 py-5 text-slate-900">
+    <main className="min-h-[100dvh] bg-background px-4 py-5 text-foreground">
       <div className="mx-auto grid max-w-md gap-4">
-        <Skeleton className="h-16 rounded-2xl" />
+        <Skeleton className="h-14 rounded-xl" />
         <div className="grid grid-cols-2 gap-3">
-          <Skeleton className="h-24 rounded-2xl" />
-          <Skeleton className="h-24 rounded-2xl" />
+          <Skeleton className="h-20 rounded-xl" />
+          <Skeleton className="h-20 rounded-xl" />
         </div>
-        <Skeleton className="h-24 rounded-2xl" />
-        <Skeleton className="h-52 rounded-2xl" />
+        <Skeleton className="h-20 rounded-xl" />
+        <Skeleton className="h-44 rounded-xl" />
       </div>
     </main>
   );
@@ -88,9 +88,9 @@ function QuickAction({
     <Button
       asChild
       className={[
-        "h-12 rounded-2xl px-4 text-sm font-black shadow-sm",
+        "h-11 rounded-xl px-4 text-[14px] font-semibold shadow-sm",
         primary
-          ? "bg-slate-950 text-white hover:bg-slate-800"
+          ? "bg-teal-600 text-white hover:bg-teal-700"
           : "border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
       ].join(" ")}
       variant={primary ? "default" : "outline"}
@@ -109,20 +109,20 @@ function RecentExpenseRow({ expense }: { expense: Expense }) {
   return (
     <Link
       href={`/expenses/${expense.id}`}
-      className="grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm active:scale-[0.99]"
+      className="grid grid-cols-[38px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm active:scale-[0.99] hover:border-slate-300"
     >
-      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
-        <Icon className="h-5 w-5" />
+      <span className="flex h-9.5 w-9.5 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+        <Icon className="h-4.5 w-4.5" />
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-sm font-black text-slate-950">{expense.storeName || expense.detail}</span>
-        <span className="mt-1 block truncate text-xs font-semibold text-slate-500">
+        <span className="block truncate text-[14px] font-semibold text-slate-950">{expense.storeName || expense.detail}</span>
+        <span className="mt-0.5 block truncate text-[12px] text-slate-400">
           {formatDate(expense.purchaseDate)} · {expense.payerName || "ไม่ระบุผู้เบิก"}
         </span>
       </span>
-      <span className="flex items-center gap-1 text-sm font-black text-slate-950">
+      <span className="flex items-center gap-0.5 text-[14px] font-semibold text-slate-900">
         ฿{expense.total.toLocaleString("en-US", { maximumFractionDigits: 0 })}
-        <ChevronRight className="h-4 w-4 text-slate-400" />
+        <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
       </span>
     </Link>
   );
@@ -156,13 +156,14 @@ export default function MobilePage() {
   }
 
   return (
-    <main className="min-h-[100dvh] bg-[#F5F7FB] pb-24 text-slate-900">
-      <section className="mx-auto grid w-full max-w-md gap-5 px-4 pb-5 pt-4">
-        <header className="sticky top-0 z-20 -mx-4 border-b border-slate-200 bg-[#F5F7FB]/95 px-4 pb-3 pt-3 backdrop-blur">
+    <main className="min-h-[100dvh] bg-background pb-24 text-foreground">
+      <section className="mx-auto grid w-full max-w-md gap-4 px-4 pb-5 pt-4">
+        {/* Sticky header */}
+        <header className="sticky top-0 z-20 -mx-4 border-b border-slate-200 bg-background/98 px-4 pb-3 pt-3 backdrop-blur">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-xs font-black uppercase text-slate-400">Receipt Reader</p>
-              <h1 className="truncate text-2xl font-black tracking-normal">{activeBusiness?.name || "รายจ่าย"}</h1>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Business Ops</p>
+              <h1 className="truncate text-[22px] font-bold tracking-tight text-slate-950">{activeBusiness?.name || "รายจ่าย"}</h1>
             </div>
             <div className="shrink-0">
               <UserAccountMenu />
@@ -170,37 +171,43 @@ export default function MobilePage() {
           </div>
         </header>
 
+        {/* Not logged in */}
         {!isLoggedIn ? (
-          <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
-              <UserRound className="h-6 w-6" />
+          <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal-50">
+              <UserRound className="h-5.5 w-5.5 text-teal-600" />
             </div>
-            <h2 className="mt-4 text-xl font-black tracking-normal">เข้าสู่ระบบ Google</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-500">ข้อมูลรายจ่ายหลักโหลดจาก Firestore หลังเข้าสู่ระบบ</p>
+            <h2 className="mt-4 text-[17px] font-bold text-slate-950">เข้าสู่ระบบ Google</h2>
+            <p className="mt-1.5 text-sm leading-relaxed text-slate-500">ข้อมูลรายจ่ายหลักโหลดจาก Firestore หลังเข้าสู่ระบบ</p>
             <Button
-              className="mt-5 h-12 w-full rounded-2xl bg-slate-950 text-white hover:bg-slate-800"
+              className="mt-5 h-11 w-full rounded-xl bg-teal-600 text-[14px] font-semibold text-white hover:bg-teal-700"
               onClick={() => signIn("google", { callbackUrl: "/mobile" })}
             >
               เข้าสู่ระบบ
-              <ArrowRight className="h-5 w-5" />
+              <ArrowRight className="h-4.5 w-4.5" />
             </Button>
           </section>
         ) : null}
 
         {isLoggedIn ? (
           <>
-            <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+            {/* Business switcher */}
+            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
               <BusinessSwitcher />
             </div>
 
+            {/* No business */}
             {!activeBusinessId ? (
-              <section className="rounded-2xl border border-dashed border-blue-200 bg-white p-5 text-center shadow-sm">
-                <Store className="mx-auto h-10 w-10 text-blue-600" />
-                <h2 className="mt-3 text-xl font-black tracking-normal">สร้างธุรกิจก่อน</h2>
-                <Button asChild className="mt-5 h-12 w-full rounded-2xl bg-slate-950 text-white hover:bg-slate-800">
+              <section className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center shadow-sm">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100">
+                  <Store className="h-6 w-6 text-slate-500" />
+                </div>
+                <h2 className="mt-3 text-[17px] font-bold text-slate-950">สร้างธุรกิจก่อน</h2>
+                <p className="mt-1 text-sm text-slate-500">เพิ่มข้อมูลธุรกิจเพื่อเริ่มบันทึกรายจ่าย</p>
+                <Button asChild className="mt-5 h-11 w-full rounded-xl bg-slate-950 text-[14px] font-semibold text-white hover:bg-slate-800">
                   <Link href="/settings/businesses">
                     ไปจัดการธุรกิจ
-                    <ChevronRight className="h-5 w-5" />
+                    <ChevronRight className="h-4.5 w-4.5" />
                   </Link>
                 </Button>
               </section>
@@ -208,6 +215,7 @@ export default function MobilePage() {
 
             {activeBusinessId ? (
               <>
+                {/* Summary KPI */}
                 <SummaryCards
                   monthLabel={`${thaiMonths[currentDate.getMonth()]} ${currentDate.getFullYear()}`}
                   yearLabel={String(currentDate.getFullYear())}
@@ -216,28 +224,32 @@ export default function MobilePage() {
                   totalThisYear={yearTotal}
                 />
 
-                <div className="grid grid-cols-2 gap-3">
+                {/* Quick actions */}
+                <div className="grid grid-cols-2 gap-2.5">
                   <QuickAction href="/expenses/new" icon={Plus} label="เพิ่มรายจ่าย" primary />
                   <QuickAction href="/receipt-chat?mock=1" icon={Camera} label="สแกน mock" />
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                {/* Filters */}
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
                   <ExpenseFilters filters={filters} payerOptions={payerOptions} onChange={setFilters} />
                 </div>
 
+                {/* Error */}
                 {error ? (
-                  <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-800">
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
                     {error}
                   </div>
                 ) : null}
 
+                {/* Recent expenses */}
                 <section className="grid gap-3">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-black tracking-normal">ล่าสุด</h2>
-                    <Button asChild variant="ghost" className="h-10 rounded-xl px-3 text-sm font-black text-blue-700">
+                    <h2 className="text-[16px] font-bold text-slate-950">รายการล่าสุด</h2>
+                    <Button asChild variant="ghost" className="h-8 rounded-lg px-2.5 text-[13px] font-semibold text-teal-700 hover:bg-teal-50">
                       <Link href="/expenses">
-                        ทั้งหมด
-                        <ChevronRight className="h-4 w-4" />
+                        ดูทั้งหมด
+                        <ChevronRight className="h-3.5 w-3.5" />
                       </Link>
                     </Button>
                   </div>
@@ -249,9 +261,12 @@ export default function MobilePage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center shadow-sm">
-                      <ReceiptText className="mx-auto h-9 w-9 text-slate-400" />
-                      <p className="mt-3 text-sm font-black text-slate-700">ยังไม่มีรายจ่าย</p>
+                    <div className="rounded-xl border border-dashed border-slate-200 bg-white p-8 text-center shadow-sm">
+                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100">
+                        <ReceiptText className="h-6 w-6 text-slate-400" />
+                      </div>
+                      <p className="mt-3 text-[14px] font-semibold text-slate-700">ยังไม่มีรายจ่าย</p>
+                      <p className="mt-1 text-[13px] text-slate-400">เริ่มต้นโดยการเพิ่มรายจ่ายแรก</p>
                     </div>
                   )}
                 </section>

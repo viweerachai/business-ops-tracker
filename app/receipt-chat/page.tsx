@@ -16,11 +16,11 @@ export default function ReceiptChatPage() {
 
   if (status === "loading") {
     return (
-      <main className="grid min-h-[100dvh] place-items-center bg-[#E9EDF2] px-5 py-8">
-        <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
-          <Skeleton className="h-8 w-40 rounded-xl" />
-          <Skeleton className="mt-4 h-20 w-full rounded-2xl" />
-          <Skeleton className="mt-4 h-12 w-full rounded-2xl" />
+      <main className="grid min-h-[100dvh] place-items-center bg-background px-5 py-8">
+        <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-md">
+          <Skeleton className="h-6 w-32 rounded-lg" />
+          <Skeleton className="mt-4 h-16 w-full rounded-xl" />
+          <Skeleton className="mt-4 h-11 w-full rounded-xl" />
         </div>
       </main>
     );
@@ -28,34 +28,43 @@ export default function ReceiptChatPage() {
 
   if (!session?.user && !mockMode) {
     return (
-      <main className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_#dff4ef_0%,_#f8fafc_42%,_#eef3f7_100%)] px-5 py-8 text-slate-900">
-        <div className="mx-auto grid max-w-md gap-5 pt-10">
-          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-white shadow-[0_20px_40px_rgba(15,23,42,0.08)]">
-            <Lock className="h-8 w-8 text-teal-700" />
+      <main className="min-h-[100dvh] bg-background px-5 py-10 text-slate-900">
+        <div className="mx-auto max-w-sm">
+          {/* Icon */}
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-50 shadow-sm">
+            <Lock className="h-7 w-7 text-teal-600" />
           </div>
-          <div>
-            <p className="text-sm font-black uppercase text-teal-700">Protected</p>
-            <h1 className="mt-2 text-3xl font-black tracking-normal">ต้นทุนผู้ช่วยต้องล็อกอินก่อน</h1>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
-              หน้า receipt chat ใช้ข้อมูลธุรกิจและ workflow ที่ผูกกับบัญชี Google เพราะฉะนั้นถ้ายังไม่เข้าสู่ระบบจะยังเข้าใช้งานหน้านี้ไม่ได้
+
+          {/* Heading */}
+          <div className="mt-5">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-teal-600">ต้องเข้าสู่ระบบก่อน</p>
+            <h1 className="mt-2 text-[24px] font-bold leading-tight tracking-tight text-slate-950">
+              ต้นทุนผู้ช่วย
+            </h1>
+            <p className="mt-2 text-sm leading-relaxed text-slate-500">
+              หน้า Receipt Chat ผูกกับบัญชี Google เพื่อดึงข้อมูลธุรกิจและบันทึกรายจ่าย
             </p>
           </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_20px_40px_rgba(15,23,42,0.06)]">
+          {/* Info card */}
+          <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-start gap-3">
-              <ReceiptText className="mt-0.5 h-5 w-5 text-slate-500" />
+              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100">
+                <ReceiptText className="h-4 w-4 text-slate-500" />
+              </div>
               <div className="min-w-0">
-                <p className="font-black text-slate-900">หลังล็อกอินแล้ว</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  คุณจะกลับเข้าหน้า `receipt-chat` นี้ได้ทันที และค่อยต่อ flow ถ่ายรูปใบเสร็จบนมือถือได้เลย
+                <p className="text-[14px] font-semibold text-slate-900">หลังเข้าสู่ระบบแล้ว</p>
+                <p className="mt-1 text-[13px] leading-relaxed text-slate-500">
+                  คุณจะกลับหน้า receipt-chat นี้ได้ทันที และเริ่ม flow ถ่ายรูปใบเสร็จได้เลย
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="grid gap-3">
-            <GoogleSignInButton callbackUrl="/receipt-chat" className="h-12 w-full justify-center rounded-2xl" />
-            <Button asChild variant="outline" className="h-12 rounded-2xl bg-white">
+          {/* Actions */}
+          <div className="mt-5 grid gap-2.5">
+            <GoogleSignInButton callbackUrl="/receipt-chat" className="h-11 w-full justify-center rounded-xl font-semibold" />
+            <Button asChild variant="outline" className="h-11 rounded-xl border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-50">
               <Link href="/mobile">กลับหน้ามือถือ</Link>
             </Button>
           </div>
@@ -65,7 +74,7 @@ export default function ReceiptChatPage() {
   }
 
   return (
-    <main className="h-[100dvh] w-full max-w-full overflow-hidden bg-[#E9EDF2]">
+    <main className="h-[100dvh] w-full max-w-full overflow-hidden bg-background">
       <ChatShell mockMode={mockMode} />
     </main>
   );

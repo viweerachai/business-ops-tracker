@@ -15,18 +15,22 @@ export function CreateExpenseFooter({
   onSave: () => void;
 }) {
   return (
-    <footer className="sticky bottom-0 z-20 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur md:px-8">
+    <footer className="sticky bottom-0 z-20 border-t border-slate-200 bg-white/98 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] backdrop-blur md:px-6">
       <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3">
-        <Button variant="outline" className="h-12 rounded-xl bg-white px-8 text-base" onClick={onCancel}>
+        <Button
+          variant="outline"
+          className="h-10 rounded-lg border-slate-200 bg-white px-6 text-[14px] font-semibold text-slate-700 hover:bg-slate-50"
+          onClick={onCancel}
+        >
           ยกเลิก
         </Button>
         <Button
-          className="h-12 rounded-xl bg-slate-950 px-8 text-base font-black text-white hover:bg-slate-800"
+          className="h-10 rounded-lg bg-teal-600 px-6 text-[14px] font-semibold text-white hover:bg-teal-700 disabled:opacity-60"
           onClick={onSave}
           disabled={disabled || saving}
         >
-          {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
-          {saving ? "กำลังสร้าง..." : saveLabel ?? "สร้างรายจ่าย"}
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          {saving ? "กำลังบันทึก..." : saveLabel ?? "สร้างรายจ่าย"}
         </Button>
       </div>
     </footer>

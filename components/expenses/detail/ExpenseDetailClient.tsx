@@ -181,10 +181,12 @@ function StepLabel({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <Badge className="mt-0.5 rounded-full bg-blue-50 px-3 py-1 text-blue-700">Step {step}</Badge>
+      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[11px] font-bold text-white">
+        {step}
+      </div>
       <div className="min-w-0">
-        <h2 className="text-lg font-black text-slate-950">{title}</h2>
-        {description ? <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p> : null}
+        <h2 className="text-[15px] font-bold text-slate-950">{title}</h2>
+        {description ? <p className="mt-0.5 text-[13px] leading-relaxed text-slate-500">{description}</p> : null}
       </div>
     </div>
   );
@@ -410,7 +412,7 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
   async function handleRunVisionOcr() {
     const sourceImage = previewImageUrl || replacementImageDataUrl;
     if (!sourceImage) {
-      setError("ยังไม่มีรูปใบเสร็จสำหรับ OCR");
+      setError("ยั��ไม่มีรูปใบเสร็จสำหรับ OCR");
       inputRef.current?.click();
       return;
     }
@@ -566,23 +568,35 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-[#F6F8FB] text-slate-900">
-      <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white/95 px-4 shadow-sm backdrop-blur md:px-8">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="rounded-full" onClick={handleCancel} aria-label="Back">
-            <ArrowLeft className="h-6 w-6 text-slate-600" />
+    <main className="flex min-h-screen flex-col bg-background text-foreground">
+      <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white/98 px-4 shadow-sm backdrop-blur md:px-6">
+        <div className="flex items-center gap-2.5">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+            onClick={handleCancel}
+            aria-label="Back"
+          >
+            <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-xl font-black tracking-normal md:text-2xl">แก้ไขรายจ่าย</h1>
-            <p className="hidden text-sm text-slate-500 sm:block">แก้ข้อมูลใบเสร็จและรายการสินค้า แล้วบันทึกกลับ Firestore</p>
+            <h1 className="text-[17px] font-bold tracking-tight text-slate-950">แก้ไขรายจ่าย</h1>
+            <p className="hidden text-[12px] text-slate-400 sm:block">แก้ไขข้อมูลใบเสร็จและรายการสินค้า</p>
           </div>
         </div>
-        <Button variant="ghost" size="icon" className="rounded-full" aria-label="Close" onClick={handleCancel}>
-          <X className="h-6 w-6 text-slate-500" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          aria-label="Close"
+          onClick={handleCancel}
+        >
+          <X className="h-4.5 w-4.5" />
         </Button>
       </header>
 
-      <section className="mx-auto grid w-full max-w-[1440px] flex-1 grid-cols-1 gap-5 px-4 py-5 pb-28 md:px-8 lg:grid-cols-[minmax(360px,0.9fr)_minmax(520px,1.1fr)] lg:gap-7">
+      <section className="mx-auto grid w-full max-w-[1440px] flex-1 grid-cols-1 gap-5 px-4 py-5 pb-28 md:px-6 lg:grid-cols-[minmax(360px,0.9fr)_minmax(520px,1.1fr)] lg:gap-6">
         {loading || businessLoading ? (
           <>
             <Skeleton className="h-[720px] rounded-2xl" />
@@ -600,20 +614,21 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
         ) : null}
 
         {!loading && !expense ? (
-          <Card className="rounded-2xl lg:col-span-2">
-            <CardContent className="p-10 text-center">
-              <FileText className="mx-auto h-10 w-10 text-slate-400" />
-              <p className="mt-3 text-lg font-black">ไม่พบรายจ่ายนี้</p>
-              <Button className="mt-5 rounded-xl bg-slate-950 text-white" onClick={handleCancel}>
-                กลับหน้ารายจ่าย
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="flex flex-col items-center justify-center py-20 text-center lg:col-span-2">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100">
+              <FileText className="h-8 w-8 text-slate-400" />
+            </div>
+            <p className="mt-4 text-[18px] font-bold text-slate-900">ไม่พบรายจ่ายนี้</p>
+            <p className="mt-1 text-sm text-slate-500">รายจ่ายอาจถูกลบไปแล้ว หรือ ID ไม่ถูกต้อง</p>
+            <Button className="mt-6 h-10 rounded-lg bg-slate-900 px-5 text-[14px] font-semibold text-white hover:bg-slate-800" onClick={handleCancel}>
+              กลับหน้ารายจ่าย
+            </Button>
+          </div>
         ) : null}
 
         {!loading && expense ? (
           <>
-            <div className="grid content-start gap-4 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto lg:pr-1">
+            <div className="grid content-start gap-4 lg:sticky lg:top-16 lg:max-h-[calc(100dvh-5rem)] lg:overflow-y-auto lg:pr-1">
               <StepLabel
                 step={1}
                 title="ตรวจรูปใบเสร็จ"
@@ -634,7 +649,8 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
             </div>
             <div className="grid content-start gap-6">
               {success ? (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-700">
+                <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
                   {success}
                 </div>
               ) : null}
