@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Lock, ReceiptText } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { ChatShell } from "@/components/receipt-chat/ChatShell";
@@ -9,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ReceiptChatPage() {
+  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
+  const mockMode = searchParams.get("mock") === "1";
 
   if (status === "loading") {
     return (
@@ -23,7 +26,7 @@ export default function ReceiptChatPage() {
     );
   }
 
-  if (!session?.user) {
+  if (!session?.user && !mockMode) {
     return (
       <main className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_#dff4ef_0%,_#f8fafc_42%,_#eef3f7_100%)] px-5 py-8 text-slate-900">
         <div className="mx-auto grid max-w-md gap-5 pt-10">
@@ -63,7 +66,7 @@ export default function ReceiptChatPage() {
 
   return (
     <main className="h-[100dvh] w-full max-w-full overflow-hidden bg-[#E9EDF2]">
-      <ChatShell />
+      <ChatShell mockMode={mockMode} />
     </main>
   );
 }

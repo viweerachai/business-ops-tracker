@@ -7,7 +7,7 @@ import { Camera, Home, Package, Plus, Settings } from "lucide-react";
 const navItems = [
   { href: "/expenses", label: "หน้าหลัก", icon: Home, active: (p: string) => p === "/expenses" },
   { href: "/expenses/new", label: "เพิ่ม", icon: Plus, active: (p: string) => p === "/expenses/new", isPrimary: true },
-  { href: "/receipt-chat", label: "สแกน", icon: Camera, active: (p: string) => p.startsWith("/receipt-chat") },
+  { href: "/receipt-chat?mock=1", label: "สแกน", icon: Camera, active: (p: string) => p.startsWith("/receipt-chat") },
   { href: "/products", label: "สินค้า", icon: Package, active: (p: string) => p.startsWith("/products") },
   { href: "/settings/businesses", label: "ตั้งค่า", icon: Settings, active: (p: string) => p.startsWith("/settings") }
 ] as const;

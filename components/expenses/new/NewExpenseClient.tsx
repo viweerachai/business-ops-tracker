@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { X } from "lucide-react";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { Button } from "@/components/ui/button";
@@ -167,8 +167,75 @@ function itemFromGemini(item: GeminiReceiptExtraction["items"][number]): Expense
   };
 }
 
+function buildMockExpenseData() {
+  const receiptDate = "2026-05-02";
+  const items: ExpenseItemState[] = [
+    {
+      id: createId(),
+      rawName: "M・アイスカフェラテ",
+      displayName: "Iced Caffe Latte",
+      category: "Food",
+      quantity: 1,
+      unitPrice: 440,
+      totalPrice: 440,
+      isResaleItem: false,
+      memo: ""
+    }
+  ];
+
+  const form: ExpenseFormState = {
+    ...defaultExpenseForm,
+    receiptDate,
+    storeName: "DOUTOR 西新井西口店",
+    detail: "ค่า Iced Caffe Latte",
+    documentType: "receipt",
+    category: "Food",
+    paymentStatus: "paid",
+    amount: 440,
+    currency: "JPY",
+    originalCurrency: "JPY",
+    baseCurrency: "THB",
+    exchangeRate: 0.23,
+    exchangeRateSource: "api",
+    exchangeRateDate: receiptDate,
+    manualAmountOverride: true,
+    subtotalOriginal: 440,
+    vatOriginal: 0,
+    whtOriginal: 0,
+    totalOriginal: 440,
+    subtotalBase: 101.2,
+    vatBase: 0,
+    whtBase: 0,
+    totalBase: 101.2,
+    requester: "Mock User",
+    hasTaxInvoice: false,
+    invoiceNumber: "",
+    subtotal: 440,
+    tax: 0,
+    withholdingTax: 0,
+    expenseType: "รายจ่าย",
+    subCategory: "Mock",
+    vendorName: "DOUTOR 西新井西口店",
+    vendorTaxId: "",
+    vendorBranchName: "",
+    vendorBranchCode: "",
+    vendorAddress: "Mock address",
+    note: "Mock data for testing"
+  };
+
+  return {
+    form,
+    items,
+    imageDataUrl:
+      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='900' viewBox='0 0 640 900'%3E%3Crect width='640' height='900' fill='%23f8fafc'/%3E%3Crect x='110' y='120' width='420' height='660' rx='28' fill='white' stroke='%23cbd5e1' stroke-width='4'/%3E%3Ctext x='320' y='430' text-anchor='middle' font-family='Arial' font-size='34' font-weight='700' fill='%2364748b'%3EMock Receipt%3C/text%3E%3Ctext x='320' y='480' text-anchor='middle' font-family='Arial' font-size='24' fill='%2394a3b8'%3Eready for testing%3C/text%3E%3C/svg%3E",
+    fileName: "mock-receipt.svg",
+    ocrText: "DOUTOR 西新井西口店\n2026/05/02\nM・アイスカフェラテ ¥440\n合計 ¥440"
+  };
+}
+
 export function NewExpenseClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
   const { activeBusiness, activeBusinessId, loading: businessLoading } = useBusinesses();
   const { user: firebaseUser, loading: firebaseLoading } = useFirebaseUser();
@@ -183,6 +250,7 @@ export function NewExpenseClient() {
   const [, setMessage] = useState("พร้อมอ่าน OCR");
   const [error, setError] = useState<string | null>(null);
   const [showGoogleDialog, setShowGoogleDialog] = useState(false);
+  const mockMode = searchParams.get("mock") === "1";
   const companyName = activeBusiness?.name ?? "ธุรกิจของฉัน";
 
   useEffect(() => {
@@ -210,6 +278,12 @@ export function NewExpenseClient() {
     }
   }, []);
 
+  useEffect(() => {
+    if (mockMode) {
+      handleLoadMockData();
+    }
+  }, [mockMode]);
+
   function saveDraftBeforeGoogleSignIn() {
     sessionStorage.setItem(
       googleSignInDraftKey,
@@ -222,6 +296,19 @@ export function NewExpenseClient() {
         ocrText
       })
     );
+  }
+
+  function handleLoadMockData() {
+    const mock = buildMockExpenseData();
+    setExpenseId(createId());
+    setForm(mock.form);
+    setItems(mock.items);
+    setImageDataUrl(mock.imageDataUrl);
+    setFileName(mock.fileName);
+    setOcrText(mock.ocrText);
+    setStatus("done");
+    setError(null);
+    setMessage("โหลด mock data แล้ว ตรวจแก้ก่อนสร้างรายจ่าย");
   }
 
   async function handleUploadImage(file?: File | null) {
@@ -645,7 +732,8 @@ export function NewExpenseClient() {
           error={error}
           ocrText={ocrText}
           downloadFileName={fileName}
-          onUploadClick={() => inputRef.current?.click()}
+          onUploadClick={mockMode ? handleLoadMockData : () => inputRef.current?.click()}
+          onLoadMock={handleLoadMockData}
           onRunVisionOcr={handleRunVisionOcr}
         />
         <div className="grid content-start gap-5">

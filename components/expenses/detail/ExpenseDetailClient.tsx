@@ -628,6 +628,7 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
                 downloadUrl={replacementImageDataUrl ? replacementImageDataUrl : driveImageDownloadUrl(expense)}
                 downloadFileName={fileName || `receipt-${expense.id}.jpg`}
                 onUploadClick={() => inputRef.current?.click()}
+                onLoadMock={() => undefined}
                 onRunVisionOcr={handleRunVisionOcr}
               />
             </div>

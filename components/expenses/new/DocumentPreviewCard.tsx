@@ -15,6 +15,7 @@ export function DocumentPreviewCard({
   downloadUrl,
   downloadFileName,
   onUploadClick,
+  onLoadMock,
   onRunVisionOcr
 }: {
   imageDataUrl: string | null;
@@ -25,6 +26,7 @@ export function DocumentPreviewCard({
   downloadUrl?: string | null;
   downloadFileName?: string | null;
   onUploadClick: () => void;
+  onLoadMock: () => void;
   onRunVisionOcr: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<"preview" | "ocr">("preview");
@@ -214,6 +216,10 @@ export function DocumentPreviewCard({
           <Button className="h-12 rounded-xl bg-slate-950 text-white hover:bg-slate-800" onClick={onUploadClick} disabled={busy}>
             <Upload className="h-5 w-5" />
             อัปโหลดรูป
+          </Button>
+          <Button variant="outline" className="h-12 rounded-xl border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100" onClick={onLoadMock} disabled={busy}>
+            <FileSearch className="h-5 w-5" />
+            ใช้ mock data
           </Button>
           <Button variant="outline" className="h-12 rounded-xl bg-white" onClick={onRunVisionOcr} disabled={busy}>
             {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <ScanText className="h-5 w-5" />}

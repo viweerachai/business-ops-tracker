@@ -31,6 +31,10 @@ import type { Business, Expense, ExpenseItem, ProductCatalogSourceItem } from "@
 import { CATEGORIES } from "@/lib/types/receipt";
 import { createId } from "@/lib/utils";
 
+type AuthUserRef = {
+  uid: string;
+};
+
 function formatFirebaseAuthError(error: unknown) {
   const message = error instanceof Error ? error.message : "Firebase login failed";
   const code = typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code ?? "") : "";
@@ -483,7 +487,7 @@ export function subscribeProductSourceItems(
   );
 }
 
-export async function getExpenseWithItemsDoc(user: User, businessId: string, expenseId: string) {
+export async function getExpenseWithItemsDoc(user: AuthUserRef, businessId: string, expenseId: string) {
   const expenseRef = doc(db(), expensePath(user.uid, businessId, expenseId));
   const expenseSnap = await getDoc(expenseRef);
   if (!expenseSnap.exists()) return null;
@@ -495,7 +499,7 @@ export async function getExpenseWithItemsDoc(user: User, businessId: string, exp
   };
 }
 
-export async function deleteExpenseDoc(user: User, businessId: string, expenseId: string) {
+export async function deleteExpenseDoc(user: AuthUserRef, businessId: string, expenseId: string) {
   const firestoreDb = db();
   const expenseRef = doc(firestoreDb, expensePath(user.uid, businessId, expenseId));
   const itemsSnap = await getDocs(collection(expenseRef, "items"));
@@ -513,7 +517,7 @@ export async function saveExpenseWithItemsDoc({
   expense,
   items
 }: {
-  user: User;
+  user: AuthUserRef;
   businessId: string;
   expense: Omit<FirestoreExpense, "createdAt" | "updatedAt" | "ownerUid" | "businessId">;
   items: Array<Omit<FirestoreExpenseItem, "createdAt" | "updatedAt" | "ownerUid" | "businessId" | "expenseId">>;
@@ -549,7 +553,7 @@ export async function updateExpenseWithItemsDoc({
   expense,
   items
 }: {
-  user: User;
+  user: AuthUserRef;
   businessId: string;
   expenseId: string;
   expense: Partial<Omit<FirestoreExpense, "createdAt" | "updatedAt" | "ownerUid" | "businessId" | "id">>;

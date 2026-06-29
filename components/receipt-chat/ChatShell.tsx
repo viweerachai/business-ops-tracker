@@ -7,6 +7,7 @@ import { ChatMessageList, type ChatPhase } from "@/components/receipt-chat/ChatM
 import { OcrTextSheet } from "@/components/receipt-chat/OcrTextSheet";
 import { ReceiptEditSheet } from "@/components/receipt-chat/ReceiptEditSheet";
 import type { ChatReceipt, ChatReceiptItem } from "@/components/receipt-chat/types";
+import { mockReceipt } from "@/components/receipt-chat/types";
 import { defaultExpenseForm, type ExpenseFormState } from "@/components/expenses/new/types";
 import { saveReceiptWithItems } from "@/lib/local/db";
 import { canCallGemini, getGeminiUsage, incrementGeminiUsage } from "@/lib/local/gemini-usage";
@@ -18,6 +19,9 @@ import { checkOcrQuality } from "@/lib/ocr-quality";
 import type { GeminiReceiptExtraction } from "@/lib/receiptSchema";
 import type { OcrLanguage, Receipt, ReceiptItem } from "@/lib/types/receipt";
 import { createId } from "@/lib/utils";
+
+const mockReceiptImageDataUrl =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='900' viewBox='0 0 640 900'%3E%3Crect width='640' height='900' fill='%23f8fafc'/%3E%3Crect x='110' y='120' width='420' height='660' rx='28' fill='white' stroke='%23cbd5e1' stroke-width='4'/%3E%3Ctext x='320' y='430' text-anchor='middle' font-family='Arial' font-size='34' font-weight='700' fill='%2364748b'%3EMock Receipt%3C/text%3E%3Ctext x='320' y='480' text-anchor='middle' font-family='Arial' font-size='24' fill='%2394a3b8'%3Ereceipt-chat mock mode%3C/text%3E%3C/svg%3E";
 
 type VisionOcrResponse =
   | { success: true; ocrText: string }
@@ -151,7 +155,7 @@ function blankItem(): ChatReceiptItem {
   };
 }
 
-export function ChatShell() {
+export function ChatShell({ mockMode = false }: { mockMode?: boolean }) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const lastResolvedRateKeyRef = useRef<string | null>(null);
@@ -168,6 +172,16 @@ export function ChatShell() {
   const { user } = useFirebaseUser();
   const { activeBusinessId, isLoggedIn } = useBusinesses();
   const ocrLanguage: OcrLanguage = "jpn+eng";
+
+  useEffect(() => {
+    if (!mockMode) return;
+    setImageDataUrl(mockReceiptImageDataUrl);
+    setReceipt(mockReceipt);
+    setPhase("ready");
+    setSaved(false);
+    setError(null);
+    setQualityWarning(null);
+  }, [mockMode]);
 
   useEffect(() => {
     void fetch("/api/vision/ocr", {
@@ -214,6 +228,16 @@ export function ChatShell() {
 
   async function handleFile(file: File | null) {
     if (!file) return;
+
+    if (mockMode) {
+      setImageDataUrl(mockReceiptImageDataUrl);
+      setReceipt(mockReceipt);
+      setSaved(false);
+      setError(null);
+      setQualityWarning(null);
+      setPhase("ready");
+      return;
+    }
 
     setReceipt(null);
     setSaved(false);
@@ -315,6 +339,15 @@ export function ChatShell() {
         )
       };
     });
+  }
+
+  function loadMockReceipt() {
+    setImageDataUrl(null);
+    setReceipt(mockReceipt);
+    setPhase("ready");
+    setSaved(false);
+    setError(null);
+    setQualityWarning(null);
   }
 
   function receiptToExpenseForm(nextReceipt: ChatReceipt): ExpenseFormState {
@@ -493,6 +526,7 @@ export function ChatShell() {
           qualityWarning={qualityWarning}
           onCamera={() => cameraInputRef.current?.click()}
           onGallery={() => galleryInputRef.current?.click()}
+          onLoadMock={loadMockReceipt}
           onViewOcr={() => setOcrOpen(true)}
           onEditAll={() => setEditOpen(true)}
           onAddItem={addItem}

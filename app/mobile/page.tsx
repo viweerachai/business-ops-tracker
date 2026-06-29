@@ -5,44 +5,39 @@ import { useMemo } from "react";
 import { signIn } from "next-auth/react";
 import {
   ArrowRight,
-  BarChart3,
   Camera,
   ChevronRight,
   CircleDollarSign,
-  LayoutDashboard,
   Plus,
   ReceiptText,
-  Settings,
+  Search,
   Store,
   UserRound
 } from "lucide-react";
 import { BusinessSwitcher } from "@/components/business/BusinessSwitcher";
 import { UserAccountMenu } from "@/components/layout/UserAccountMenu";
+import { MobileBottomNav } from "@/components/expenses/MobileBottomNav";
+import { ExpenseFilters } from "@/components/expenses/ExpenseFilters";
+import { SummaryCards } from "@/components/expenses/SummaryCards";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBusinesses } from "@/hooks/useBusinesses";
 import { useExpenses } from "@/hooks/useExpenses";
 import type { Expense } from "@/lib/expenseTypes";
 
-const currency = new Intl.NumberFormat("ja-JP", {
-  style: "currency",
-  currency: "JPY",
-  maximumFractionDigits: 0
-});
-
 const thaiMonths = [
-  "ม.ค.",
-  "ก.พ.",
-  "มี.ค.",
-  "เม.ย.",
-  "พ.ค.",
-  "มิ.ย.",
-  "ก.ค.",
-  "ส.ค.",
-  "ก.ย.",
-  "ต.ค.",
-  "พ.ย.",
-  "ธ.ค."
+  "มกราคม",
+  "กุมภาพันธ์",
+  "มีนาคม",
+  "เมษายน",
+  "พฤษภาคม",
+  "มิถุนายน",
+  "กรกฎาคม",
+  "สิงหาคม",
+  "กันยายน",
+  "ตุลาคม",
+  "พฤศจิกายน",
+  "ธันวาคม"
 ];
 
 function formatDate(value: string) {
@@ -58,31 +53,23 @@ function isThisMonth(value: string, current: Date) {
 
 function expenseIcon(expense: Expense) {
   if (expense.documentType === "ใบกำกับภาษี") return ReceiptText;
-  if (expense.categorySummary === "Transport") return BarChart3;
+  if (expense.categorySummary === "Transport") return Search;
   return CircleDollarSign;
 }
 
-function SummaryTile({
-  label,
-  value,
-  tone = "slate"
-}: {
-  label: string;
-  value: string;
-  tone?: "slate" | "blue" | "emerald";
-}) {
-  const toneClass =
-    tone === "blue"
-      ? "border-blue-100 bg-blue-50 text-blue-950"
-      : tone === "emerald"
-        ? "border-emerald-100 bg-emerald-50 text-emerald-950"
-        : "border-slate-200 bg-white text-slate-950";
-
+function LoadingMobile() {
   return (
-    <div className={`min-w-0 rounded-2xl border p-4 shadow-sm ${toneClass}`}>
-      <p className="text-xs font-black text-slate-500">{label}</p>
-      <p className="mt-2 truncate text-xl font-black tracking-normal">{value}</p>
-    </div>
+    <main className="min-h-[100dvh] bg-[#F5F7FB] px-4 py-5 text-slate-900">
+      <div className="mx-auto grid max-w-md gap-4">
+        <Skeleton className="h-16 rounded-2xl" />
+        <div className="grid grid-cols-2 gap-3">
+          <Skeleton className="h-24 rounded-2xl" />
+          <Skeleton className="h-24 rounded-2xl" />
+        </div>
+        <Skeleton className="h-24 rounded-2xl" />
+        <Skeleton className="h-52 rounded-2xl" />
+      </div>
+    </main>
   );
 }
 
@@ -101,32 +88,30 @@ function QuickAction({
     <Button
       asChild
       className={[
-        "h-14 rounded-2xl px-4 text-base font-black shadow-sm",
-        primary ? "bg-slate-950 text-white hover:bg-slate-800" : "border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+        "h-12 rounded-2xl px-4 text-sm font-black shadow-sm",
+        primary
+          ? "bg-slate-950 text-white hover:bg-slate-800"
+          : "border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
       ].join(" ")}
       variant={primary ? "default" : "outline"}
     >
       <Link href={href}>
-        <Icon className="h-5 w-5" />
+        <Icon className="h-4 w-4" />
         <span className="min-w-0 truncate">{label}</span>
       </Link>
     </Button>
   );
 }
 
-function RecentExpenseRow({
-  expense
-}: {
-  expense: Expense;
-}) {
+function RecentExpenseRow({ expense }: { expense: Expense }) {
   const Icon = expenseIcon(expense);
 
   return (
     <Link
       href={`/expenses/${expense.id}`}
-      className="grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm active:scale-[0.99]"
+      className="grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm active:scale-[0.99]"
     >
-      <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
         <Icon className="h-5 w-5" />
       </span>
       <span className="min-w-0">
@@ -136,26 +121,10 @@ function RecentExpenseRow({
         </span>
       </span>
       <span className="flex items-center gap-1 text-sm font-black text-slate-950">
-        {currency.format(expense.total)}
+        ฿{expense.total.toLocaleString("en-US", { maximumFractionDigits: 0 })}
         <ChevronRight className="h-4 w-4 text-slate-400" />
       </span>
     </Link>
-  );
-}
-
-function LoadingMobile() {
-  return (
-    <main className="min-h-[100dvh] bg-[#F5F7FB] px-4 py-5 text-slate-900">
-      <div className="mx-auto grid max-w-md gap-4">
-        <Skeleton className="h-16 rounded-2xl" />
-        <div className="grid grid-cols-2 gap-3">
-          <Skeleton className="h-24 rounded-2xl" />
-          <Skeleton className="h-24 rounded-2xl" />
-        </div>
-        <Skeleton className="h-36 rounded-2xl" />
-        <Skeleton className="h-72 rounded-2xl" />
-      </div>
-    </main>
   );
 }
 
@@ -167,7 +136,8 @@ export default function MobilePage() {
     loading: businessLoading,
     error: businessError
   } = useBusinesses();
-  const { expenses, loading: expensesLoading, error: expensesError } = useExpenses(activeBusinessId);
+  const { expenses, filteredExpenses, filters, setFilters, payerOptions, loading: expensesLoading, error: expensesError } =
+    useExpenses(activeBusinessId);
   const currentDate = useMemo(() => new Date(), []);
   const loading = businessLoading || expensesLoading;
   const monthExpenses = useMemo(
@@ -175,7 +145,10 @@ export default function MobilePage() {
     [expenses, currentDate]
   );
   const monthTotal = monthExpenses.reduce((sum, expense) => sum + expense.total, 0);
-  const recentExpenses = expenses.slice(0, 5);
+  const yearTotal = expenses
+    .filter((expense) => expense.purchaseDate.startsWith(String(currentDate.getFullYear())))
+    .reduce((sum, expense) => sum + expense.total, 0);
+  const recentExpenses = filteredExpenses.slice(0, 5);
   const error = businessError || expensesError;
 
   if (loading && isLoggedIn) {
@@ -204,7 +177,10 @@ export default function MobilePage() {
             </div>
             <h2 className="mt-4 text-xl font-black tracking-normal">เข้าสู่ระบบ Google</h2>
             <p className="mt-2 text-sm leading-6 text-slate-500">ข้อมูลรายจ่ายหลักโหลดจาก Firestore หลังเข้าสู่ระบบ</p>
-            <Button className="mt-5 h-12 w-full rounded-2xl bg-slate-950 text-white hover:bg-slate-800" onClick={() => signIn("google", { callbackUrl: "/mobile" })}>
+            <Button
+              className="mt-5 h-12 w-full rounded-2xl bg-slate-950 text-white hover:bg-slate-800"
+              onClick={() => signIn("google", { callbackUrl: "/mobile" })}
+            >
               เข้าสู่ระบบ
               <ArrowRight className="h-5 w-5" />
             </Button>
@@ -232,15 +208,22 @@ export default function MobilePage() {
 
             {activeBusinessId ? (
               <>
-                <section className="grid grid-cols-2 gap-3">
-                  <SummaryTile label="เดือนนี้" value={currency.format(monthTotal)} tone="blue" />
-                  <SummaryTile label="จำนวนบิล" value={`${monthExpenses.length} รายการ`} tone="emerald" />
-                </section>
+                <SummaryCards
+                  monthLabel={`${thaiMonths[currentDate.getMonth()]} ${currentDate.getFullYear()}`}
+                  yearLabel={String(currentDate.getFullYear())}
+                  receiptCountThisMonth={monthExpenses.length}
+                  totalThisMonth={monthTotal}
+                  totalThisYear={yearTotal}
+                />
 
-                <section className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <QuickAction href="/expenses/new" icon={Plus} label="เพิ่มรายจ่าย" primary />
-                  <QuickAction href="/receipt-chat" icon={Camera} label="สแกนเร็ว" />
-                </section>
+                  <QuickAction href="/receipt-chat?mock=1" icon={Camera} label="สแกน mock" />
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                  <ExpenseFilters filters={filters} payerOptions={payerOptions} onChange={setFilters} />
+                </div>
 
                 {error ? (
                   <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-800">
@@ -278,26 +261,7 @@ export default function MobilePage() {
         ) : null}
       </section>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
-        <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
-          <Link className="grid h-14 place-items-center rounded-2xl text-xs font-black text-blue-700" href="/mobile">
-            <LayoutDashboard className="h-5 w-5" />
-            หน้าหลัก
-          </Link>
-          <Link className="grid h-14 place-items-center rounded-2xl text-xs font-black text-slate-500" href="/expenses/new">
-            <Plus className="h-5 w-5" />
-            เพิ่ม
-          </Link>
-          <Link className="grid h-14 place-items-center rounded-2xl text-xs font-black text-slate-500" href="/receipt-chat">
-            <Camera className="h-5 w-5" />
-            สแกน
-          </Link>
-          <Link className="grid h-14 place-items-center rounded-2xl text-xs font-black text-slate-500" href="/settings/businesses">
-            <Settings className="h-5 w-5" />
-            ตั้งค่า
-          </Link>
-        </div>
-      </nav>
+      <MobileBottomNav />
     </main>
   );
 }

@@ -19,6 +19,7 @@ export function ChatMessageList({
   qualityWarning,
   onCamera,
   onGallery,
+  onLoadMock,
   onViewOcr,
   onEditAll,
   onAddItem,
@@ -33,6 +34,7 @@ export function ChatMessageList({
   qualityWarning: string | null;
   onCamera: () => void;
   onGallery: () => void;
+  onLoadMock: () => void;
   onViewOcr: () => void;
   onEditAll: () => void;
   onAddItem: () => void;
@@ -55,6 +57,9 @@ export function ChatMessageList({
         <Button size="lg" variant="outline" className="h-12 shrink-0 rounded-2xl bg-white px-5 shadow-sm" onClick={onGallery}>
           <ImagePlus className="h-5 w-5" />
           อัปโหลดรูป
+        </Button>
+        <Button size="lg" variant="outline" className="h-12 shrink-0 rounded-2xl border-amber-200 bg-amber-50 px-5 text-amber-800 shadow-sm hover:bg-amber-100" onClick={onLoadMock}>
+          ใช้ mock data
         </Button>
       </div>
 
