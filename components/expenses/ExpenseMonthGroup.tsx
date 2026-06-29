@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, FileCheck2, FolderSync, Trash2 } from "lucide-react";
+import { ChevronDown, FileCheck2, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import type { Expense } from "@/lib/expenseTypes";
 
 function statusLabel(status: Expense["paymentStatus"]) {
@@ -18,10 +17,11 @@ function statusLabel(status: Expense["paymentStatus"]) {
 }
 
 function statusClass(status: Expense["paymentStatus"]) {
-  if (status === "paid") return "bg-green-100 text-green-700";
-  if (status === "failed") return "bg-red-100 text-red-700";
-  if (status === "pending") return "bg-amber-100 text-amber-700";
-  return "bg-slate-100 text-slate-600";
+  if (status === "paid") return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  if (status === "failed") return "bg-red-50 text-red-700 border-red-200";
+  if (status === "pending") return "bg-amber-50 text-amber-700 border-amber-200";
+  if (status === "review_needed") return "bg-blue-50 text-blue-700 border-blue-200";
+  return "bg-slate-50 text-slate-600 border-slate-200";
 }
 
 function shortThaiDate(date: string) {
@@ -47,148 +47,156 @@ export function ExpenseMonthGroup({
   const [open, setOpen] = useState(true);
 
   return (
-    <section className="max-w-full overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
-      <div className="flex min-h-[76px] w-full flex-wrap items-center justify-between gap-4 bg-[#F5F5F5] px-5 py-4 text-left">
-        <div className="flex items-center gap-4">
-          <Checkbox className="h-6 w-6 rounded-md border-slate-300" />
-          <button
-            type="button"
-            className="flex flex-wrap items-center gap-3 text-left"
-            onClick={() => setOpen((value) => !value)}
-          >
-            <h2 className="text-[20px] font-black text-slate-900 2xl:text-[22px]">{month}</h2>
-            <Badge className="rounded-md bg-indigo-50 px-2 py-1 text-[15px] font-bold text-indigo-700">
-              {expenses.length} รายการ
-            </Badge>
-          </button>
+    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      {/* Group header */}
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-4 bg-slate-50 px-4 py-3.5 text-left transition-colors hover:bg-slate-100 sm:px-5"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <div className="flex items-center gap-3">
+          <h2 className="text-[15px] font-bold text-slate-900">{month}</h2>
+          <Badge className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[12px] font-semibold text-slate-600 shadow-none">
+            {expenses.length} รายการ
+          </Badge>
         </div>
-        <div className="flex items-center gap-4 2xl:gap-6">
-          <FolderSync className="h-6 w-6 text-slate-400" />
-          <p className="text-[18px] font-black text-slate-700 2xl:text-[20px]">ยอดรวม ฿{total.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
-          <button
-            type="button"
-            aria-label={open ? "Collapse month group" : "Expand month group"}
-            className="flex h-10 w-10 items-center justify-center rounded-lg hover:bg-white"
-            onClick={() => setOpen((value) => !value)}
-          >
-            <ChevronDown className={["h-5 w-5 text-slate-400 transition", open ? "rotate-180" : ""].join(" ")} />
-          </button>
+        <div className="flex items-center gap-3">
+          <span className="text-[14px] font-bold text-slate-700">
+            ฿{total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+          </span>
+          <ChevronDown
+            className={[
+              "h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200",
+              open ? "rotate-180" : ""
+            ].join(" ")}
+          />
         </div>
-      </div>
+      </button>
 
       {open ? (
         <>
-        <div className="grid gap-3 p-3 md:hidden">
-          {expenses.map((expense) => (
-            <article
-              key={expense.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => onOpen(expense.id)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") onOpen(expense.id);
-              }}
-              className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm active:scale-[0.99]"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-base font-black text-slate-950">{expense.storeName || "ไม่ระบุร้าน"}</p>
-                  <p className="mt-1 truncate text-sm font-semibold text-slate-500">{expense.detail}</p>
-                </div>
-                <Badge className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-black ${statusClass(expense.paymentStatus)}`}>
-                  {statusLabel(expense.paymentStatus)}
-                </Badge>
-              </div>
-              <div className="mt-4 grid grid-cols-[1fr_auto] items-end gap-3">
-                <div className="min-w-0 text-xs font-bold text-slate-500">
-                  <p>{shortThaiDate(expense.purchaseDate)}</p>
-                  <p className="mt-1 truncate">{expense.documentType} · {expense.payerName || "ไม่ระบุผู้เบิก"}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="text-right">
-                    <p className="text-lg font-black text-slate-800">฿{expense.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
-                    <p className="text-xs text-slate-400">{expense.currency}</p>
-                  </div>
-                  <button
-                    type="button"
-                    aria-label="Delete expense"
-                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-red-500 shadow-sm"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onDelete(expense);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-
-        <div className="hidden max-w-full overflow-x-auto px-5 md:block">
-          <div className="min-w-[1160px]">
-            <div className="grid h-12 grid-cols-[34px_36px_120px_160px_minmax(150px,1fr)_minmax(190px,1.2fr)_160px_140px_150px] items-center border-b border-slate-200 text-[14px] font-bold text-slate-600">
-              <div />
-              <div />
-              <div>วันที่</div>
-              <div>ประเภทเอกสาร</div>
-              <div>ร้านค้า</div>
-              <div>รายละเอียด</div>
-              <div>ผู้อนุญาตเบิกจ่าย</div>
-              <div>สถานะการจ่าย</div>
-              <div className="text-right">ยอดชำระ</div>
-            </div>
+          {/* Mobile cards */}
+          <div className="divide-y divide-slate-100 md:hidden">
             {expenses.map((expense) => (
-              <div
+              <article
                 key={expense.id}
                 role="button"
                 tabIndex={0}
                 onClick={() => onOpen(expense.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") onOpen(expense.id);
-                }}
-                className="grid min-h-20 cursor-pointer grid-cols-[34px_36px_120px_160px_minmax(150px,1fr)_minmax(190px,1.2fr)_160px_140px_150px] items-center border-b border-slate-100 text-[15px] text-slate-600 hover:bg-slate-50 last:border-b-0"
+                onKeyDown={(e) => { if (e.key === "Enter") onOpen(expense.id); }}
+                className="cursor-pointer px-4 py-3.5 transition-colors hover:bg-slate-50 active:bg-slate-100"
               >
-                <Checkbox className="h-5 w-5 rounded-md border-slate-300" onClick={(event) => event.stopPropagation()} />
-                <FileCheck2 className="h-5 w-5 text-green-500" />
-                <div>{shortThaiDate(expense.purchaseDate)}</div>
-                <div>
-                  <Badge className="rounded-md bg-indigo-50 px-2 py-1 text-[13px] font-bold text-indigo-700">
-                    {expense.documentType}
-                  </Badge>
-                </div>
-                <div className="truncate pr-5">{expense.storeName}</div>
-                <div className="truncate pr-5">{expense.detail}</div>
-                <div className="truncate pr-4">{expense.payerName}</div>
-                <div>
-                  <Badge className={`rounded-full px-3 py-1.5 text-[13px] font-black ${statusClass(expense.paymentStatus)}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[14px] font-bold text-slate-900">
+                      {expense.storeName || "ไม่ระบุร้าน"}
+                    </p>
+                    {expense.detail ? (
+                      <p className="mt-0.5 truncate text-[12px] text-slate-500">{expense.detail}</p>
+                    ) : null}
+                  </div>
+                  <Badge className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold shadow-none ${statusClass(expense.paymentStatus)}`}>
                     {statusLabel(expense.paymentStatus)}
                   </Badge>
                 </div>
-                <div className="flex items-center justify-end gap-3">
-                  <div className="text-right">
-                    <p className="text-[15px] font-black text-slate-700">฿{expense.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      {expense.total.toLocaleString("en-US", { minimumFractionDigits: 2 })} {expense.currency}
+
+                <div className="mt-3 flex items-end justify-between gap-3">
+                  <div className="text-[12px] text-slate-400">
+                    <p>{shortThaiDate(expense.purchaseDate)}</p>
+                    <p className="mt-0.5 truncate">
+                      {expense.documentType}
+                      {expense.payerName ? ` · ${expense.payerName}` : ""}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    aria-label="Delete expense"
-                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-red-500 shadow-sm"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onDelete(expense);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <div className="text-right">
+                      <p className="text-[16px] font-bold text-slate-900">
+                        ฿{expense.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="ลบรายการ"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-500"
+                      onClick={(e) => { e.stopPropagation(); onDelete(expense); }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
-              </div>
+              </article>
             ))}
           </div>
-        </div>
+
+          {/* Desktop table */}
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[900px]">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">วันที่</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">ประเภท</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">ร้านค้า</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">รายละเอียด</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">ผู้เบิก</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">สถานะ</th>
+                  <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-400">ยอดชำระ</th>
+                  <th className="w-12 px-3 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {expenses.map((expense) => (
+                  <tr
+                    key={expense.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => onOpen(expense.id)}
+                    onKeyDown={(e) => { if (e.key === "Enter") onOpen(expense.id); }}
+                    className="cursor-pointer transition-colors hover:bg-slate-50"
+                  >
+                    <td className="px-5 py-3.5">
+                      <span className="text-[13px] text-slate-600">{shortThaiDate(expense.purchaseDate)}</span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <FileCheck2 className="h-3.5 w-3.5 shrink-0 text-teal-500" />
+                        <span className="text-[13px] text-slate-600">{expense.documentType}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className="text-[13px] font-semibold text-slate-800">{expense.storeName || "—"}</span>
+                    </td>
+                    <td className="px-4 py-3.5 max-w-[200px]">
+                      <span className="block truncate text-[13px] text-slate-500">{expense.detail || "—"}</span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className="text-[13px] text-slate-600">{expense.payerName || "—"}</span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <Badge className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold shadow-none ${statusClass(expense.paymentStatus)}`}>
+                        {statusLabel(expense.paymentStatus)}
+                      </Badge>
+                    </td>
+                    <td className="px-5 py-3.5 text-right">
+                      <p className="text-[14px] font-bold text-slate-900">
+                        ฿{expense.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-[11px] text-slate-400">{expense.currency}</p>
+                    </td>
+                    <td className="px-3 py-3.5">
+                      <button
+                        type="button"
+                        aria-label="ลบรายการ"
+                        className="flex h-7 w-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500"
+                        onClick={(e) => { e.stopPropagation(); onDelete(expense); }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       ) : null}
     </section>

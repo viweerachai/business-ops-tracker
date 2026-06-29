@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, FileText, Search, ToggleLeft, UserRound } from "lucide-react";
+import { ChevronDown, FileText, Search, UserRound, Check, CalendarDays } from "lucide-react";
 import type { ExpenseDocumentType, ExpenseFiltersState, ExpensePaymentStatus } from "@/lib/expenseTypes";
 
 const documentTypeOptions: Array<ExpenseDocumentType | "ทั้งหมด"> = [
@@ -18,34 +18,45 @@ const statusOptions: Array<ExpensePaymentStatus | "ทั้งหมด"> = [
   "failed"
 ];
 
+const statusLabels: Record<string, string> = {
+  "ทั้งหมด": "สถานะทั้งหมด",
+  paid: "จ่ายแล้ว",
+  pending: "รอจ่าย",
+  draft: "ร่าง",
+  review_needed: "ต้องตรวจ",
+  failed: "ผิดพลาด"
+};
+
 function SelectFilter<T extends string>({
   icon: Icon,
   value,
   options,
   onChange,
+  labelMap,
   className = ""
 }: {
   icon: React.ComponentType<{ className?: string }>;
   value: T;
   options: T[];
   onChange: (value: T) => void;
+  labelMap?: Record<string, string>;
   className?: string;
 }) {
   return (
     <div className={`relative ${className}`}>
-      <Icon className="pointer-events-none absolute left-4 top-3.5 h-4.5 w-4.5 text-slate-500" />
+      <Icon className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
       <select
         value={value}
-        onChange={(event) => onChange(event.target.value as T)}
-        className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pl-11 pr-9 text-[14px] font-semibold text-slate-600 shadow-sm outline-none hover:border-blue-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+        onChange={(e) => onChange(e.target.value as T)}
+        className="h-9 w-full appearance-none rounded-lg border border-slate-200 bg-white pl-9 pr-7 text-[13px] font-medium text-slate-700 shadow-sm outline-none transition-colors hover:border-slate-300 focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
       >
         {options.map((option) => (
           <option key={option} value={option}>
-            {option}
+            {labelMap ? (labelMap[option] ?? option) : option}
           </option>
         ))}
       </select>
-      <ChevronDown className="pointer-events-none absolute right-3 top-3.5 h-4 w-4 text-slate-400" />
+      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
     </div>
   );
 }
@@ -63,54 +74,73 @@ export function ExpenseFilters({
     onChange({ ...filters, ...patch });
   }
 
+  const isUploadDate = filters.dateMode === "uploadDate";
+
   return (
-    <div className="grid gap-3 lg:flex lg:flex-wrap lg:items-center lg:justify-between lg:gap-4">
-      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:flex lg:flex-1 lg:flex-wrap">
+    <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
+      {/* Search */}
+      <div className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 shadow-sm transition-colors focus-within:border-teal-400 focus-within:ring-2 focus-within:ring-teal-100 sm:max-w-xs">
+        <Search className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+        <input
+          value={filters.search}
+          onChange={(e) => update({ search: e.target.value })}
+          className="min-w-0 flex-1 bg-transparent text-[13px] font-medium text-slate-700 outline-none placeholder:text-slate-400"
+          placeholder="ค้นหา ร้านค้า, รายละเอียด..."
+        />
+      </div>
+
+      {/* Date */}
+      <div className="relative">
+        <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
         <input
           type="date"
           value={filters.date}
-          onChange={(event) => update({ date: event.target.value })}
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-[14px] font-semibold text-slate-600 shadow-sm outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 lg:w-[170px]"
-        />
-        <div className="flex h-11 min-w-0 items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 text-[14px] font-semibold text-slate-500 shadow-sm sm:col-span-2 lg:min-w-[240px] lg:flex-1 lg:max-w-sm">
-          <Search className="h-4.5 w-4.5 text-slate-500" />
-          <input
-            value={filters.search}
-            onChange={(event) => update({ search: event.target.value })}
-            className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-slate-400"
-            placeholder="ชื่อร้านค้า, รายละเอียด"
-          />
-        </div>
-        <SelectFilter
-          icon={UserRound}
-          value={filters.payerName}
-          options={["ทั้งหมด", ...payerOptions]}
-          onChange={(payerName) => update({ payerName })}
-          className="w-full lg:w-[150px]"
-        />
-        <SelectFilter
-          icon={FileText}
-          value={filters.documentType}
-          options={documentTypeOptions}
-          onChange={(documentType) => update({ documentType })}
-          className="w-full lg:w-[170px]"
-        />
-        <SelectFilter
-          icon={Check}
-          value={filters.paymentStatus}
-          options={statusOptions}
-          onChange={(paymentStatus) => update({ paymentStatus })}
-          className="w-full lg:w-[170px]"
+          onChange={(e) => update({ date: e.target.value })}
+          className="h-9 rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-[13px] font-medium text-slate-700 shadow-sm outline-none transition-colors hover:border-slate-300 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 sm:w-[160px]"
         />
       </div>
+
+      {/* Payer */}
+      <SelectFilter
+        icon={UserRound}
+        value={filters.payerName}
+        options={["ทั้งหมด", ...payerOptions]}
+        onChange={(payerName) => update({ payerName })}
+        className="sm:w-[150px]"
+      />
+
+      {/* Document type */}
+      <SelectFilter
+        icon={FileText}
+        value={filters.documentType}
+        options={documentTypeOptions}
+        onChange={(documentType) => update({ documentType })}
+        className="sm:w-[160px]"
+      />
+
+      {/* Status */}
+      <SelectFilter
+        icon={Check}
+        value={filters.paymentStatus}
+        options={statusOptions}
+        onChange={(paymentStatus) => update({ paymentStatus })}
+        labelMap={statusLabels}
+        className="sm:w-[150px]"
+      />
+
+      {/* Date mode toggle */}
       <button
         type="button"
-        onClick={() => update({ dateMode: filters.dateMode === "purchaseDate" ? "uploadDate" : "purchaseDate" })}
-        className="flex min-w-0 shrink-0 items-center justify-center gap-2 rounded-full bg-white px-3 py-2 text-[12px] font-bold text-slate-800 shadow-sm ring-1 ring-slate-200 sm:text-[14px] lg:gap-3 lg:px-4"
+        onClick={() => update({ dateMode: isUploadDate ? "purchaseDate" : "uploadDate" })}
+        className={[
+          "flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3 text-[12px] font-semibold transition-colors",
+          isUploadDate
+            ? "border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100"
+            : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+        ].join(" ")}
       >
-        <span className={["truncate", filters.dateMode === "purchaseDate" ? "text-slate-900" : "text-slate-400"].join(" ")}>วันที่ในใบเสร็จ</span>
-        <ToggleLeft className={["h-8 w-8", filters.dateMode === "purchaseDate" ? "text-slate-300" : "rotate-180 text-blue-500"].join(" ")} />
-        <span className={["truncate", filters.dateMode === "uploadDate" ? "text-slate-900" : "text-slate-400"].join(" ")}>วันที่อัปโหลด</span>
+        <CalendarDays className="h-3.5 w-3.5" />
+        {isUploadDate ? "วันที่อัปโหลด" : "วันที่ในใบเสร็จ"}
       </button>
     </div>
   );

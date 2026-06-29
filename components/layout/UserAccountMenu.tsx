@@ -19,7 +19,7 @@ function AvatarImage({ image, name }: { image?: string | null; name?: string | n
   const fallback = (name || "G").trim().slice(0, 1).toUpperCase();
 
   return (
-    <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-900 text-sm font-black text-white">
+    <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-teal-600 text-[13px] font-bold text-white">
       {image ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={image} alt={name || "Google account"} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
@@ -34,7 +34,7 @@ function LargeAvatarImage({ image, name }: { image?: string | null; name?: strin
   const fallback = (name || "G").trim().slice(0, 1).toUpperCase();
 
   return (
-    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-900 text-base font-black text-white">
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-teal-600 text-[15px] font-bold text-white">
       {image ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={image} alt={name || "Google account"} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
@@ -96,18 +96,15 @@ export function UserAccountMenu() {
     <div className="relative">
       <button
         type="button"
-        className="flex w-full items-center gap-3 rounded-2xl bg-slate-50 p-3 text-left transition hover:bg-slate-100"
+        className="flex w-full items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-left transition-colors hover:bg-slate-100"
         onClick={() => setOpen((value) => !value)}
       >
         <AvatarImage image={user.image} name={user.name} />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-bold text-slate-900">{user.name || "Google User"}</p>
-            <Badge className="rounded-md bg-indigo-50 px-1.5 py-0.5 text-[11px] text-indigo-700">Pro</Badge>
-          </div>
-          <p className="truncate text-xs text-slate-400">{user.email}</p>
+          <p className="truncate text-[13px] font-semibold text-slate-900">{user.name || "Google User"}</p>
+          <p className="truncate text-[11px] text-slate-400">{user.email}</p>
         </div>
-        <ChevronUp className={["h-4 w-4 text-slate-400 transition", open ? "rotate-180" : ""].join(" ")} />
+        <ChevronUp className={["h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform", open ? "rotate-180" : ""].join(" ")} />
       </button>
 
       {open ? (

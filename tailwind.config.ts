@@ -9,6 +9,10 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["var(--font-sarabun)", "Sarabun", "Arial", "sans-serif"],
+        mono: ["ui-monospace", "monospace"]
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

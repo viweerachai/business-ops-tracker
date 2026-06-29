@@ -3,34 +3,54 @@
 @tailwind utilities;
 
 :root {
-  --background: 38 43% 97%;
-  --foreground: 221 39% 12%;
-  --card: 0 0% 100%;
-  --card-foreground: 221 39% 12%;
-  --primary: 173 80% 25%;
+  /* Brand */
+  --primary: 168 72% 28%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 48 94% 58%;
-  --secondary-foreground: 221 39% 12%;
-  --muted: 210 20% 92%;
-  --muted-foreground: 215 16% 38%;
-  --accent: 349 74% 58%;
+  --primary-light: 168 60% 92%;
+
+  /* Background & surfaces */
+  --background: 220 20% 97%;
+  --foreground: 220 25% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 25% 10%;
+
+  /* UI neutrals */
+  --muted: 220 16% 93%;
+  --muted-foreground: 220 12% 46%;
+  --border: 220 16% 88%;
+  --input: 220 16% 88%;
+  --ring: 168 72% 28%;
+
+  /* Accent & secondary */
+  --secondary: 168 30% 95%;
+  --secondary-foreground: 168 72% 20%;
+  --accent: 215 80% 56%;
   --accent-foreground: 0 0% 100%;
-  --destructive: 0 72% 51%;
+  --destructive: 0 68% 52%;
   --destructive-foreground: 0 0% 100%;
-  --border: 215 19% 82%;
-  --input: 215 19% 82%;
-  --ring: 173 80% 25%;
+
+  /* Sidebar */
+  --sidebar: 220 25% 10%;
+  --sidebar-foreground: 220 10% 75%;
+  --sidebar-active: 168 72% 28%;
+  --sidebar-active-foreground: 0 0% 100%;
+  --sidebar-border: 220 20% 16%;
+
+  --radius: 0.75rem;
 }
 
 * {
   border-color: hsl(var(--border));
+  box-sizing: border-box;
 }
 
 body {
   min-height: 100vh;
   background: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-family: Arial, "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+  font-family: "Sarabun", "Inter", "Noto Sans Thai", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 input,
@@ -38,4 +58,20 @@ textarea,
 select,
 button {
   font: inherit;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
 }

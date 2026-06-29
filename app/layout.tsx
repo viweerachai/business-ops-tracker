@@ -1,11 +1,19 @@
 import type { Metadata, Viewport } from "next";
+import { Sarabun } from "next/font/google";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { PwaRegister } from "@/components/pwa-register";
 import "./globals.css";
 
+const sarabun = Sarabun({
+  subsets: ["latin", "thai"],
+  weight: ["300", "400", "500", "600", "700", "800"],
+  variable: "--font-sarabun",
+  display: "swap"
+});
+
 export const metadata: Metadata = {
-  title: "Receipt Reader",
-  description: "Local-first receipt OCR and resale item review for Japan resellers",
+  title: "Business Ops Tracker",
+  description: "ระบบติดตามรายจ่ายธุรกิจ จัดการใบเสร็จและรายงานการเงิน",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
@@ -31,8 +39,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="th">
-      <body>
+    <html lang="th" className={`${sarabun.variable} bg-background`}>
+      <body className="font-sans">
         <AuthProvider>
           <PwaRegister />
           {children}
