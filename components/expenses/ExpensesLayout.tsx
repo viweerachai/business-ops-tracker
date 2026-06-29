@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import { AlertCircle, Upload } from "lucide-react";
 import { signIn, useSession } from "next-auth/react";
 import { CreateBusinessDialog } from "@/components/business/CreateBusinessDialog";
+import { BusinessSwitcher } from "@/components/business/BusinessSwitcher";
 import { AppSidebar } from "@/components/expenses/AppSidebar";
 import { BusinessHeader } from "@/components/expenses/BusinessHeader";
 import { DeleteExpenseDialog } from "@/components/expenses/DeleteExpenseDialog";
 import { ExpenseFilters } from "@/components/expenses/ExpenseFilters";
+import { MobileBottomNav } from "@/components/expenses/MobileBottomNav";
 import { ExpenseTable, type ExpenseMonthGroupData } from "@/components/expenses/ExpenseTable";
 import { ExpenseTabs, type ExpenseTab } from "@/components/expenses/ExpenseTabs";
 import { SummaryCards } from "@/components/expenses/SummaryCards";
@@ -94,7 +96,6 @@ export function ExpensesLayout() {
   const router = useRouter();
   const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState<ExpenseTab>("expenses");
-  const [toast, setToast] = useState<string | null>(null);
   const [createBusinessOpen, setCreateBusinessOpen] = useState(false);
   const [loginPrompt, setLoginPrompt] = useState<{ open: boolean; callbackUrl: string }>({
     open: false,
@@ -133,11 +134,6 @@ export function ExpensesLayout() {
   const hasBusiness = Boolean(activeBusinessId);
   const ownerEmail = session?.user?.email ?? "";
 
-  function showToast(message: string) {
-    setToast(message);
-    window.setTimeout(() => setToast(null), 2500);
-  }
-
   async function getGoogleClientSession() {
     try {
       const response = await fetch("/api/auth/session", {
@@ -175,11 +171,14 @@ export function ExpensesLayout() {
   }
 
   return (
-    <main className="h-screen overflow-hidden bg-[#F5F7FB] text-slate-900">
-      <div className="flex h-screen min-h-0">
+    <main className="h-[100dvh] overflow-hidden bg-[#F5F7FB] text-slate-900">
+      <div className="flex h-[100dvh] min-h-0">
         <AppSidebar />
         <section className="min-w-0 flex-1 overflow-auto bg-[#F5F7FB]">
-          <div className="w-full max-w-full px-5 py-7 lg:px-7 2xl:px-9">
+          <div className="sticky top-0 z-20 border-b border-slate-200 bg-[#F5F7FB]/95 px-4 py-3 backdrop-blur lg:hidden">
+            <BusinessSwitcher />
+          </div>
+          <div className="w-full max-w-full px-4 py-5 pb-28 sm:px-5 lg:px-7 lg:py-7 lg:pb-7 2xl:px-9">
             <BusinessHeader
               businessName={activeBusiness?.name}
               phone={activeBusiness?.phone}
@@ -192,18 +191,13 @@ export function ExpensesLayout() {
                   router.push("/expenses/new");
                 }, "/expenses/new")
               }
-              onEditBusiness={() =>
-                runWithGoogleLogin(() => {
-                  if (!hasBusiness) {
-                    setCreateBusinessOpen(true);
-                    return;
-                  }
-                  showToast("ยังไม่ได้เปิดใช้งานการแก้ไขธุรกิจ");
-                })
-              }
-              onGoogleDrive={() => runWithGoogleLogin(() => showToast("เชื่อมต่อ Google แล้ว ระบบจะอัปโหลดรูปตอนกดบันทึกรายจ่าย"))}
-              onGoogleSheets={() => runWithGoogleLogin(() => showToast("Google Sheets จะเป็น export/backup ภายหลัง ตอนนี้ใช้ Firestore เป็นฐานข้อมูลหลัก"))}
+              onEditBusiness={() => {}}
+              onGoogleDrive={() => {}}
+              onGoogleSheets={() => {}}
               onExportCsv={() => runWithGoogleLogin(() => downloadExpensesCsv(filteredExpenses))}
+              editBusinessDisabled
+              googleDriveDisabled
+              googleSheetsDisabled
             />
             <div className="mt-5 inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
               Cloud DB: Firestore
@@ -295,11 +289,6 @@ export function ExpensesLayout() {
           </div>
         </section>
       </div>
-      {toast ? (
-        <div className="fixed bottom-24 right-6 z-30 rounded-xl bg-slate-950 px-4 py-3 text-sm font-bold text-white shadow-xl">
-          {toast}
-        </div>
-      ) : null}
       {loginPrompt.open ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/35 px-4">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
@@ -336,6 +325,7 @@ export function ExpensesLayout() {
         onClose={() => setCreateBusinessOpen(false)}
         onCreate={(input) => createBusiness({ ownerEmail, ...input })}
       />
+      <MobileBottomNav />
     </main>
   );
 }

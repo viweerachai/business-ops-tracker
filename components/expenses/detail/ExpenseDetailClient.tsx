@@ -20,6 +20,7 @@ import {
   type ExpenseProcessingStatus
 } from "@/components/expenses/new/types";
 import { useBusinesses } from "@/hooks/useBusinesses";
+import { resolveExpenseFormExchangeRate } from "@/lib/exchange-rate-client";
 import { canCallVision, getVisionUsage, incrementVisionUsage } from "@/lib/local/vision-usage";
 import {
   getExpenseWithItemsDoc,
@@ -108,7 +109,7 @@ function driveImageDownloadUrl(expense: ExpenseWithItems | null) {
 function formFromExpense(expense: ExpenseWithItems): ExpenseFormState {
   const originalCurrency = isCurrencyCode(expense.originalCurrency) ? expense.originalCurrency : expense.currency;
   const baseCurrency = isCurrencyCode(expense.baseCurrency) ? expense.baseCurrency : "THB";
-  const exchangeRate = expense.exchangeRate ?? (originalCurrency === baseCurrency ? 1 : 1);
+  const exchangeRate = expense.exchangeRate ?? (originalCurrency === baseCurrency ? 1 : 0);
   const subtotalOriginal = expense.subtotalOriginal ?? expense.subtotal ?? 0;
   const vatOriginal = expense.vatOriginal ?? expense.tax ?? 0;
   const whtOriginal = expense.whtOriginal ?? expense.withholdingTax ?? 0;
@@ -127,7 +128,7 @@ function formFromExpense(expense: ExpenseWithItems): ExpenseFormState {
     originalCurrency,
     baseCurrency,
     exchangeRate,
-    exchangeRateSource: "manual",
+    exchangeRateSource: expense.exchangeRateSource ?? "manual",
     exchangeRateDate: expense.exchangeRateDate ?? null,
     manualAmountOverride: expense.manualAmountOverride ?? true,
     subtotalOriginal,
@@ -472,10 +473,16 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
 
     try {
       setStatus("saving");
-      setMessage(replacementImageDataUrl ? "กำลังอัปโหลดรูปใหม่ไป Google Drive..." : "กำลังบันทึกข้อมูลไป Firestore...");
       setError(null);
       setSuccess(null);
-      const amountFields = patchSummaryAmounts(form, items);
+      setMessage("กำลังดึงอัตราแลกเปลี่ยน...");
+      const resolvedForm = await resolveExpenseFormExchangeRate({
+        ...form,
+        receiptDate: form.receiptDate || expense.purchaseDate
+      });
+      setForm(resolvedForm);
+      const amountFields = patchSummaryAmounts(resolvedForm, items);
+      setMessage(replacementImageDataUrl ? "กำลังอัปโหลดรูปใหม่ไป Google Drive..." : "กำลังบันทึกข้อมูลไป Firestore...");
       const imageFields = await uploadReplacementImage();
       setMessage("กำลังอัปเดตรายจ่ายใน Firestore...");
       await updateExpenseWithItemsDoc({
@@ -483,30 +490,30 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
         businessId: activeBusinessId,
         expenseId,
         expense: {
-          purchaseDate: form.receiptDate || expense.purchaseDate,
+          purchaseDate: resolvedForm.receiptDate || expense.purchaseDate,
           uploadDate: expense.uploadDate,
-          documentType: documentTypeLabel(form.documentType),
-          paymentStatus: paymentStatusValue(form.paymentStatus),
-          hasTaxInvoice: form.hasTaxInvoice,
-          invoiceNumber: form.invoiceNumber,
-          storeName: form.storeName,
-          vendorName: form.vendorName || form.storeName,
-          vendorTaxId: form.vendorTaxId,
-          vendorBranchName: form.vendorBranchName,
-          vendorBranchCode: form.vendorBranchCode,
-          vendorAddress: form.vendorAddress,
-          detail: form.detail,
+          documentType: documentTypeLabel(resolvedForm.documentType),
+          paymentStatus: paymentStatusValue(resolvedForm.paymentStatus),
+          hasTaxInvoice: resolvedForm.hasTaxInvoice,
+          invoiceNumber: resolvedForm.invoiceNumber,
+          storeName: resolvedForm.storeName,
+          vendorName: resolvedForm.vendorName || resolvedForm.storeName,
+          vendorTaxId: resolvedForm.vendorTaxId,
+          vendorBranchName: resolvedForm.vendorBranchName,
+          vendorBranchCode: resolvedForm.vendorBranchCode,
+          vendorAddress: resolvedForm.vendorAddress,
+          detail: resolvedForm.detail,
           subtotal: amountFields.subtotalOriginal || null,
           tax: amountFields.vatOriginal || null,
           withholdingTax: amountFields.whtOriginal || null,
           total: amountFields.totalOriginal || null,
-          currency: form.originalCurrency,
-          originalCurrency: form.originalCurrency,
-          baseCurrency: form.baseCurrency,
+          currency: resolvedForm.originalCurrency,
+          originalCurrency: resolvedForm.originalCurrency,
+          baseCurrency: resolvedForm.baseCurrency,
           exchangeRate: amountFields.exchangeRate,
-          exchangeRateSource: "manual",
-          exchangeRateDate: form.exchangeRateDate,
-          manualAmountOverride: form.manualAmountOverride,
+          exchangeRateSource: resolvedForm.exchangeRateSource,
+          exchangeRateDate: resolvedForm.exchangeRateDate,
+          manualAmountOverride: resolvedForm.manualAmountOverride,
           subtotalOriginal: amountFields.subtotalOriginal,
           vatOriginal: amountFields.vatOriginal,
           whtOriginal: amountFields.whtOriginal,
@@ -515,14 +522,14 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
           vatBase: amountFields.vatBase,
           whtBase: amountFields.whtBase,
           totalBase: amountFields.totalBase,
-          expenseType: form.expenseType || "รายจ่าย",
-          category: form.category,
-          subCategory: form.subCategory,
-          requesterName: form.requester,
-          memo: form.note,
-          aiMemo: form.note,
+          expenseType: resolvedForm.expenseType || "รายจ่าย",
+          category: resolvedForm.category,
+          subCategory: resolvedForm.subCategory,
+          requesterName: resolvedForm.requester,
+          memo: resolvedForm.note,
+          aiMemo: resolvedForm.note,
           aiConfidence: expense.ocrText ? "medium" : "low",
-          status: firestoreStatus(form.paymentStatus),
+          status: firestoreStatus(resolvedForm.paymentStatus),
           extractionMode: expense.ocrText ? "google_vision_ocr" : "manual",
           imageDriveFileId: imageFields.imageDriveFileId,
           imageDriveUrl: imageFields.imageDriveUrl,

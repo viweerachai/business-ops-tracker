@@ -18,6 +18,7 @@ import {
   type ExpenseProcessingStatus
 } from "@/components/expenses/new/types";
 import { addExpense as addDashboardExpense } from "@/lib/db";
+import { resolveExpenseFormExchangeRate } from "@/lib/exchange-rate-client";
 import type { Expense, ExpenseDocumentType, ExpenseItem, ExpensePaymentStatus, ReceiptImage } from "@/lib/expenseTypes";
 import { useBusinesses } from "@/hooks/useBusinesses";
 import { saveExpenseWithItemsDoc, useFirebaseUser } from "@/lib/firebase/firestore";
@@ -333,7 +334,7 @@ export function NewExpenseClient() {
         vendorName: data.storeName ?? current.vendorName,
         currency: "JPY",
         originalCurrency: "JPY",
-        exchangeRate: current.baseCurrency === "JPY" ? 1 : current.exchangeRate
+        exchangeRate: current.baseCurrency === "JPY" ? 1 : 0
       }));
       setItems(nextItems.length > 0 ? nextItems : items);
       setStatus("done");
@@ -349,23 +350,25 @@ export function NewExpenseClient() {
     syncStatus,
     googleResult,
     imageDataUrlToSave,
-    timestamp
+    timestamp,
+    resolvedForm
   }: {
     syncStatus: Expense["syncStatus"];
     googleResult?: Extract<GoogleUploadResponse, { success: true }>;
     imageDataUrlToSave: string;
     timestamp: string;
+    resolvedForm: ExpenseFormState;
   }) {
-    const amountFields = patchSummaryAmounts(form, items);
+    const amountFields = patchSummaryAmounts(resolvedForm, items);
     const receipt: Receipt = {
       id: expenseId,
       imageDataUrl: imageDataUrlToSave,
-      storeName: form.storeName,
-      purchaseDate: form.receiptDate || null,
+      storeName: resolvedForm.storeName,
+      purchaseDate: resolvedForm.receiptDate || null,
       subtotal: amountFields.subtotalOriginal || null,
       tax: amountFields.vatOriginal || null,
       total: amountFields.totalOriginal,
-      aiMemo: form.note,
+      aiMemo: resolvedForm.note,
       ocrLanguage,
       ocrText,
       status: "saved",
@@ -394,24 +397,24 @@ export function NewExpenseClient() {
       businessId: activeBusinessId ?? undefined,
       createdAt: timestamp,
       updatedAt: timestamp,
-      purchaseDate: form.receiptDate || timestamp.slice(0, 10),
+      purchaseDate: resolvedForm.receiptDate || timestamp.slice(0, 10),
       uploadDate: timestamp.slice(0, 10),
-      documentType: documentTypeLabel(form.documentType),
-      storeName: form.storeName,
-      detail: form.detail,
-      payerName: form.requester || "ไม่ระบุ",
-      paymentStatus: paymentStatusValue(form.paymentStatus),
+      documentType: documentTypeLabel(resolvedForm.documentType),
+      storeName: resolvedForm.storeName,
+      detail: resolvedForm.detail,
+      payerName: resolvedForm.requester || "ไม่ระบุ",
+      paymentStatus: paymentStatusValue(resolvedForm.paymentStatus),
       subtotal: amountFields.subtotalOriginal || null,
       tax: amountFields.vatOriginal || null,
       withholdingTax: amountFields.whtOriginal || null,
       total: amountFields.totalOriginal,
-      currency: form.originalCurrency,
-      originalCurrency: form.originalCurrency,
-      baseCurrency: form.baseCurrency,
+      currency: resolvedForm.originalCurrency,
+      originalCurrency: resolvedForm.originalCurrency,
+      baseCurrency: resolvedForm.baseCurrency,
       exchangeRate: amountFields.exchangeRate,
-      exchangeRateSource: "manual",
-      exchangeRateDate: form.exchangeRateDate,
-      manualAmountOverride: form.manualAmountOverride,
+      exchangeRateSource: resolvedForm.exchangeRateSource,
+      exchangeRateDate: resolvedForm.exchangeRateDate,
+      manualAmountOverride: resolvedForm.manualAmountOverride,
       subtotalOriginal: amountFields.subtotalOriginal,
       vatOriginal: amountFields.vatOriginal,
       whtOriginal: amountFields.whtOriginal,
@@ -420,24 +423,24 @@ export function NewExpenseClient() {
       vatBase: amountFields.vatBase,
       whtBase: amountFields.whtBase,
       totalBase: amountFields.totalBase,
-      categorySummary: form.category,
+      categorySummary: resolvedForm.category,
       companyName,
-      invoiceNumber: form.invoiceNumber,
-      hasTaxInvoice: form.hasTaxInvoice,
-      expenseType: form.expenseType,
-      subCategory: form.subCategory,
-      requesterName: form.requester,
-      vendorName: form.vendorName || form.storeName,
-      vendorTaxId: form.vendorTaxId,
-      vendorBranchName: form.vendorBranchName,
-      vendorBranchCode: form.vendorBranchCode,
-      vendorAddress: form.vendorAddress,
+      invoiceNumber: resolvedForm.invoiceNumber,
+      hasTaxInvoice: resolvedForm.hasTaxInvoice,
+      expenseType: resolvedForm.expenseType,
+      subCategory: resolvedForm.subCategory,
+      requesterName: resolvedForm.requester,
+      vendorName: resolvedForm.vendorName || resolvedForm.storeName,
+      vendorTaxId: resolvedForm.vendorTaxId,
+      vendorBranchName: resolvedForm.vendorBranchName,
+      vendorBranchCode: resolvedForm.vendorBranchCode,
+      vendorAddress: resolvedForm.vendorAddress,
       imageBlobId,
       driveFolderId: googleResult?.folders?.yearFolderId,
       imageDriveFileId: googleResult?.driveFile?.id,
       imageDriveUrl: googleResult?.driveFile?.webViewLink,
       ocrText,
-      aiMemo: form.note,
+      aiMemo: resolvedForm.note,
       syncStatus
     };
     const dashboardItems: ExpenseItem[] = items.map((item) => ({
@@ -483,13 +486,22 @@ export function NewExpenseClient() {
     const timestamp = new Date().toISOString();
     const nextImageDataUrl = imageDataUrl ?? placeholderImageDataUrl;
     const saveStepTimers: number[] = [];
-    const amountFields = patchSummaryAmounts(form, items);
+    const effectiveDate = form.receiptDate || timestamp.slice(0, 10);
+    let resolvedForm = form;
 
     try {
       setStatus("saving");
+      setError(null);
+      setMessage("กำลังดึงอัตราแลกเปลี่ยน...");
+      resolvedForm = await resolveExpenseFormExchangeRate({
+        ...form,
+        receiptDate: effectiveDate
+      });
+      setForm(resolvedForm);
+      const amountFields = patchSummaryAmounts(resolvedForm, items);
+
       setMessage("กำลังอัปโหลดรูปไป Google Drive...");
       saveStepTimers.push(window.setTimeout(() => setMessage("กำลังบันทึกข้อมูลรายจ่ายไป Firestore..."), 1200));
-      setError(null);
       const googleResponse = await fetch("/api/google/upload-receipt-image", {
         method: "POST",
         headers: {
@@ -498,8 +510,8 @@ export function NewExpenseClient() {
         body: JSON.stringify({
           expenseId,
           companyName,
-          purchaseDate: form.receiptDate || timestamp.slice(0, 10),
-          storeName: form.storeName,
+          purchaseDate: effectiveDate,
+          storeName: resolvedForm.storeName,
           imageDataUrl: nextImageDataUrl,
           fileName: fileName || `receipt-${expenseId}.jpg`
         })
@@ -530,30 +542,30 @@ export function NewExpenseClient() {
         businessId: activeBusinessId,
         expense: {
           id: expenseId,
-          purchaseDate: form.receiptDate || timestamp.slice(0, 10),
+          purchaseDate: effectiveDate,
           uploadDate: timestamp.slice(0, 10),
-          documentType: documentTypeLabel(form.documentType),
-          paymentStatus: paymentStatusValue(form.paymentStatus),
-          hasTaxInvoice: form.hasTaxInvoice,
-          invoiceNumber: form.invoiceNumber,
-          storeName: form.storeName,
-          vendorName: form.vendorName || form.storeName,
-          vendorTaxId: form.vendorTaxId,
-          vendorBranchName: form.vendorBranchName,
-          vendorBranchCode: form.vendorBranchCode,
-          vendorAddress: form.vendorAddress,
-          detail: form.detail,
+          documentType: documentTypeLabel(resolvedForm.documentType),
+          paymentStatus: paymentStatusValue(resolvedForm.paymentStatus),
+          hasTaxInvoice: resolvedForm.hasTaxInvoice,
+          invoiceNumber: resolvedForm.invoiceNumber,
+          storeName: resolvedForm.storeName,
+          vendorName: resolvedForm.vendorName || resolvedForm.storeName,
+          vendorTaxId: resolvedForm.vendorTaxId,
+          vendorBranchName: resolvedForm.vendorBranchName,
+          vendorBranchCode: resolvedForm.vendorBranchCode,
+          vendorAddress: resolvedForm.vendorAddress,
+          detail: resolvedForm.detail,
           subtotal: amountFields.subtotalOriginal || null,
           tax: amountFields.vatOriginal || null,
           withholdingTax: amountFields.whtOriginal || null,
           total: amountFields.totalOriginal || null,
-          currency: form.originalCurrency,
-          originalCurrency: form.originalCurrency,
-          baseCurrency: form.baseCurrency,
+          currency: resolvedForm.originalCurrency,
+          originalCurrency: resolvedForm.originalCurrency,
+          baseCurrency: resolvedForm.baseCurrency,
           exchangeRate: amountFields.exchangeRate,
-          exchangeRateSource: "manual",
-          exchangeRateDate: form.exchangeRateDate,
-          manualAmountOverride: form.manualAmountOverride,
+          exchangeRateSource: resolvedForm.exchangeRateSource,
+          exchangeRateDate: resolvedForm.exchangeRateDate,
+          manualAmountOverride: resolvedForm.manualAmountOverride,
           subtotalOriginal: amountFields.subtotalOriginal,
           vatOriginal: amountFields.vatOriginal,
           whtOriginal: amountFields.whtOriginal,
@@ -562,12 +574,12 @@ export function NewExpenseClient() {
           vatBase: amountFields.vatBase,
           whtBase: amountFields.whtBase,
           totalBase: amountFields.totalBase,
-          expenseType: form.expenseType || "รายจ่าย",
-          category: form.category,
-          subCategory: form.subCategory,
-          requesterName: form.requester,
-          memo: form.note,
-          aiMemo: form.note,
+          expenseType: resolvedForm.expenseType || "รายจ่าย",
+          category: resolvedForm.category,
+          subCategory: resolvedForm.subCategory,
+          requesterName: resolvedForm.requester,
+          memo: resolvedForm.note,
+          aiMemo: resolvedForm.note,
           aiConfidence: ocrText ? "medium" : "low",
           status: "confirmed",
           extractionMode: ocrText ? "google_vision_ocr" : "manual",
@@ -597,7 +609,8 @@ export function NewExpenseClient() {
       await saveLocalExpense({
         syncStatus: "failed",
         imageDataUrlToSave: nextImageDataUrl,
-        timestamp
+        timestamp,
+        resolvedForm
       }).catch((localError) => {
         console.error("Could not save failed local draft:", localError);
       });

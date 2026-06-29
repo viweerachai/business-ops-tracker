@@ -10,7 +10,7 @@ export function BotBubble({
   return (
     <div
       className={cn(
-        "mr-7 w-fit max-w-[88%] rounded-2xl rounded-bl-md bg-white px-4 py-3 text-sm leading-6 text-slate-800 shadow-sm ring-1 ring-slate-200/60",
+        "w-fit max-w-[calc(100%-2rem)] rounded-2xl rounded-bl-md bg-white px-4 py-3 text-sm leading-6 text-slate-800 shadow-sm ring-1 ring-slate-200/60 sm:max-w-[88%]",
         className
       )}
     >

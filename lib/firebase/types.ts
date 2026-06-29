@@ -48,11 +48,11 @@ export type FirestoreExpense = {
   tax: number | null;
   withholdingTax: number | null;
   total: number | null;
-  currency: "JPY" | "THB" | "USD" | "EUR";
-  originalCurrency?: "JPY" | "THB" | "USD" | "EUR";
-  baseCurrency?: "JPY" | "THB" | "USD" | "EUR";
+  currency: "THB" | "JPY";
+  originalCurrency?: "THB" | "JPY";
+  baseCurrency?: "THB" | "JPY";
   exchangeRate?: number;
-  exchangeRateSource?: "manual";
+  exchangeRateSource?: "manual" | "api";
   exchangeRateDate?: string | null;
   manualAmountOverride?: boolean;
   subtotalOriginal?: number;

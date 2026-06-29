@@ -1,6 +1,7 @@
 export type ExpenseDocumentType = "ใบเสร็จรับเงิน" | "ใบกำกับภาษี" | "รายจ่ายอื่น ๆ";
 export type ExpensePaymentStatus = "draft" | "review_needed" | "paid" | "pending" | "failed";
-export type ExpenseCurrency = "JPY" | "THB" | "USD" | "EUR";
+export type ExpenseCurrency = "THB" | "JPY";
+export type ExchangeRateSource = "manual" | "api";
 export type ExpenseSyncStatus = "local" | "pending" | "synced" | "failed";
 
 export type BusinessPlan = "free" | "pro";
@@ -40,7 +41,7 @@ export type Expense = {
   originalCurrency?: ExpenseCurrency;
   baseCurrency?: ExpenseCurrency;
   exchangeRate?: number;
-  exchangeRateSource?: "manual";
+  exchangeRateSource?: ExchangeRateSource;
   exchangeRateDate?: string | null;
   manualAmountOverride?: boolean;
   subtotalOriginal?: number;
@@ -87,6 +88,32 @@ export type ExpenseItem = {
   isResaleItem: boolean;
   memo?: string;
   createdAt: string;
+};
+
+export type ProductCatalogSourceItem = ExpenseItem & {
+  storeName: string;
+  purchaseDate: string;
+  originalCurrency: ExpenseCurrency;
+  baseCurrency: ExpenseCurrency;
+  exchangeRate: number;
+  expenseDetail?: string;
+};
+
+export type ProductCatalogEntry = {
+  key: string;
+  name: string;
+  totalQuantity: number;
+  purchaseCount: number;
+  latestPurchaseDate: string;
+  categories: string[];
+  stores: string[];
+  rawNames: string[];
+  memos: string[];
+  resaleCount: number;
+  nonResaleCount: number;
+  availableCurrencies: ExpenseCurrency[];
+  totalsByCurrency: Partial<Record<ExpenseCurrency, number>>;
+  quantitiesByCurrency: Partial<Record<ExpenseCurrency, number>>;
 };
 
 export type ReceiptImage = {

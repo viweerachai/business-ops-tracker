@@ -48,7 +48,11 @@ Rules:
 - If uncertain, set memo = "要確認".
 - Currency is JPY unless clearly different.
 - Keep Japanese or Thai product text in rawName.
-- displayName should be simplified and readable.
+- displayName must be easy readable English.
+- Use a natural common English product name when you know it.
+- If the exact English name is unclear, use a short romanized name instead of Japanese or Thai script.
+- Do not leave displayName in Japanese script or Thai script.
+- Keep displayName concise, like a product label someone can scan quickly.
 - If category is Food, set isResaleItem = false.
 - If category is Trading Card, Figure, Ichiban Kuji, Book, Toy, Game, Monchhichi, set isResaleItem = true.
 - If unsure whether resale item or not, set isResaleItem = true and memo = "要確認".
@@ -84,7 +88,7 @@ function uniqueModels(models: string[]) {
 function fallbackModels(primaryModel: string) {
   return uniqueModels([
     primaryModel,
-    ...(process.env.GEMINI_FALLBACK_MODELS || "gemini-2.5-flash-lite,gemini-2.0-flash")
+    ...(process.env.GEMINI_FALLBACK_MODELS || "gemini-3-flash-preview,gemini-2.5-flash,gemini-2.5-flash-lite")
       .split(",")
       .map((model) => model.trim())
   ]);
@@ -160,7 +164,7 @@ export async function extractReceiptWithGemini({
   ocrLanguage: OcrLanguage;
 }) {
   const apiKey = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const model = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
 
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY is not configured.");

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
+import { CURRENCY_CODES, type CurrencyCode } from "@/components/expenses/expenseSummaryUtils";
 import { CATEGORIES, type ReceiptCategory } from "@/lib/types/receipt";
 import { createId } from "@/lib/utils";
 import type { ChatReceipt, ChatReceiptItem } from "@/components/receipt-chat/types";
@@ -96,6 +97,52 @@ export function ReceiptEditSheet({
                   <Input inputMode="numeric" value={receipt.total ?? ""} onChange={(event) => updateReceipt({ total: event.target.value ? numberValue(event.target.value) : null })} />
                 </div>
               </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="grid gap-2">
+                  <Label>สกุลเงินใบเสร็จ</Label>
+                  <Select
+                    value={receipt.originalCurrency}
+                    onValueChange={(value) => updateReceipt({ originalCurrency: value as CurrencyCode })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCY_CODES.map((currency) => (
+                        <SelectItem key={currency} value={currency}>
+                          {currency}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>สกุลเงินหลัก</Label>
+                  <Select
+                    value={receipt.baseCurrency}
+                    onValueChange={(value) => updateReceipt({ baseCurrency: value as CurrencyCode })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCY_CODES.map((currency) => (
+                        <SelectItem key={currency} value={currency}>
+                          {currency}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>อัตราแลกเปลี่ยน</Label>
+                  <Input
+                    inputMode="decimal"
+                    value={receipt.exchangeRate}
+                    onChange={(event) => updateReceipt({ exchangeRate: event.target.value ? numberValue(event.target.value) : 0 })}
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="flex items-center justify-between gap-3">
@@ -117,7 +164,7 @@ export function ReceiptEditSheet({
                         <Input value={item.rawName} onChange={(event) => updateItem(index, { rawName: event.target.value })} />
                       </div>
                       <div className="grid gap-2">
-                        <Label>ชื่ออ่านง่าย</Label>
+                        <Label>ชื่ออังกฤษอ่านง่าย</Label>
                         <Input value={item.displayName} onChange={(event) => updateItem(index, { displayName: event.target.value })} />
                       </div>
                       <div className="grid gap-2">

@@ -77,7 +77,56 @@ export function ExpenseMonthGroup({
       </div>
 
       {open ? (
-        <div className="max-w-full overflow-x-auto px-5">
+        <>
+        <div className="grid gap-3 p-3 md:hidden">
+          {expenses.map((expense) => (
+            <article
+              key={expense.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => onOpen(expense.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") onOpen(expense.id);
+              }}
+              className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm active:scale-[0.99]"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-base font-black text-slate-950">{expense.storeName || "ไม่ระบุร้าน"}</p>
+                  <p className="mt-1 truncate text-sm font-semibold text-slate-500">{expense.detail}</p>
+                </div>
+                <Badge className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-black ${statusClass(expense.paymentStatus)}`}>
+                  {statusLabel(expense.paymentStatus)}
+                </Badge>
+              </div>
+              <div className="mt-4 grid grid-cols-[1fr_auto] items-end gap-3">
+                <div className="min-w-0 text-xs font-bold text-slate-500">
+                  <p>{shortThaiDate(expense.purchaseDate)}</p>
+                  <p className="mt-1 truncate">{expense.documentType} · {expense.payerName || "ไม่ระบุผู้เบิก"}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="text-right">
+                    <p className="text-lg font-black text-slate-800">฿{expense.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
+                    <p className="text-xs text-slate-400">{expense.currency}</p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Delete expense"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-red-500 shadow-sm"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onDelete(expense);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <div className="hidden max-w-full overflow-x-auto px-5 md:block">
           <div className="min-w-[1160px]">
             <div className="grid h-12 grid-cols-[34px_36px_120px_160px_minmax(150px,1fr)_minmax(190px,1.2fr)_160px_140px_150px] items-center border-b border-slate-200 text-[14px] font-bold text-slate-600">
               <div />
@@ -140,6 +189,7 @@ export function ExpenseMonthGroup({
             ))}
           </div>
         </div>
+        </>
       ) : null}
     </section>
   );

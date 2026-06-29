@@ -11,6 +11,8 @@ type ServiceAccountCredentials = {
   project_id?: string;
 };
 
+let cachedVisionCredentials: ServiceAccountCredentials | null | undefined;
+
 function stripDataUrlPrefix(value: string) {
   return value.replace(/^data:[^;]+;base64,/, "");
 }
@@ -63,7 +65,9 @@ function loadCredentialsFromPath() {
 }
 
 function loadVisionCredentials() {
-  return parseServiceAccountJson() ?? loadCredentialsFromPath();
+  if (cachedVisionCredentials !== undefined) return cachedVisionCredentials;
+  cachedVisionCredentials = parseServiceAccountJson() ?? loadCredentialsFromPath();
+  return cachedVisionCredentials;
 }
 
 function getErrorMessage(error: unknown) {
@@ -92,6 +96,42 @@ function getGoogleApiError(value: unknown) {
   const status = googleError.status ? String(googleError.status) : "";
   const message = googleError.message ? String(googleError.message) : "";
   return [code, status, message].filter(Boolean).join(" - ");
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableStatus(status: number) {
+  return status === 429 || status >= 500;
+}
+
+function isRetryableError(error: unknown) {
+  const message = getErrorMessage(error).toLowerCase();
+  return (
+    message.includes("econnreset") ||
+    message.includes("fetch failed") ||
+    message.includes("etimedout") ||
+    message.includes("timeout") ||
+    message.includes("socket hang up") ||
+    message.includes("temporarily unavailable")
+  );
+}
+
+async function withRetry<T>(task: () => Promise<T>, attempts = 2, delayMs = 450): Promise<T> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await task();
+    } catch (error) {
+      lastError = error;
+      if (attempt >= attempts || !isRetryableError(error)) break;
+      await sleep(delayMs);
+    }
+  }
+
+  throw lastError;
 }
 
 export async function GET() {
@@ -155,34 +195,48 @@ export async function POST(request: Request) {
       credentials,
       scopes: ["https://www.googleapis.com/auth/cloud-platform"]
     });
-    const accessToken = await auth.getAccessToken();
+    const accessToken = await withRetry(() => auth.getAccessToken());
 
     if (!accessToken) {
       throw new Error("Could not create Google access token from service account credentials.");
     }
 
-    const visionResponse = await fetch("https://vision.googleapis.com/v1/images:annotate", {
+    const requestBody = JSON.stringify({
+      requests: [
+        {
+          image: {
+            content: imageBuffer.toString("base64")
+          },
+          features: [
+            {
+              type: "DOCUMENT_TEXT_DETECTION",
+              maxResults: 1
+            }
+          ]
+        }
+      ]
+    });
+
+    let visionResponse = await fetch("https://vision.googleapis.com/v1/images:annotate", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        requests: [
-          {
-            image: {
-              content: imageBuffer.toString("base64")
-            },
-            features: [
-              {
-                type: "DOCUMENT_TEXT_DETECTION",
-                maxResults: 1
-              }
-            ]
-          }
-        ]
-      })
+      body: requestBody
     });
+
+    if (isRetryableStatus(visionResponse.status)) {
+      await sleep(500);
+      visionResponse = await fetch("https://vision.googleapis.com/v1/images:annotate", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json"
+        },
+        body: requestBody
+      });
+    }
     const visionJson = (await visionResponse.json().catch(() => null)) as
       | {
           responses?: Array<{

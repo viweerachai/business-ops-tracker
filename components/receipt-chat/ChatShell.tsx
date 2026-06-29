@@ -1,14 +1,19 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChatComposer } from "@/components/receipt-chat/ChatComposer";
 import { ChatHeader } from "@/components/receipt-chat/ChatHeader";
 import { ChatMessageList, type ChatPhase } from "@/components/receipt-chat/ChatMessageList";
 import { OcrTextSheet } from "@/components/receipt-chat/OcrTextSheet";
 import { ReceiptEditSheet } from "@/components/receipt-chat/ReceiptEditSheet";
 import type { ChatReceipt, ChatReceiptItem } from "@/components/receipt-chat/types";
+import { defaultExpenseForm, type ExpenseFormState } from "@/components/expenses/new/types";
 import { saveReceiptWithItems } from "@/lib/local/db";
+import { canCallGemini, getGeminiUsage, incrementGeminiUsage } from "@/lib/local/gemini-usage";
 import { canCallVision, getVisionUsage, incrementVisionUsage } from "@/lib/local/vision-usage";
+import { resolveExpenseFormExchangeRate } from "@/lib/exchange-rate-client";
+import { saveExpenseWithItemsDoc, useFirebaseUser } from "@/lib/firebase/firestore";
+import { useBusinesses } from "@/hooks/useBusinesses";
 import { checkOcrQuality } from "@/lib/ocr-quality";
 import type { GeminiReceiptExtraction } from "@/lib/receiptSchema";
 import type { OcrLanguage, Receipt, ReceiptItem } from "@/lib/types/receipt";
@@ -110,6 +115,9 @@ function chatReceiptFromExtraction(data: GeminiReceiptExtraction, ocrText: strin
   return {
     storeName: data.storeName ?? "",
     purchaseDate: data.purchaseDate ?? "",
+    originalCurrency: "JPY",
+    baseCurrency: "THB",
+    exchangeRate: 0,
     subtotal: data.subtotal,
     tax: data.tax,
     total: data.total,
@@ -146,6 +154,7 @@ function blankItem(): ChatReceiptItem {
 export function ChatShell() {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const lastResolvedRateKeyRef = useRef<string | null>(null);
   const [phase, setPhase] = useState<ChatPhase>("idle");
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<ChatReceipt | null>(null);
@@ -154,7 +163,54 @@ export function ChatShell() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [qualityWarning, setQualityWarning] = useState<string | null>(null);
+  const [visionUsage, setVisionUsage] = useState(() => getVisionUsage());
+  const [geminiUsage, setGeminiUsage] = useState(() => getGeminiUsage());
+  const { user } = useFirebaseUser();
+  const { activeBusinessId, isLoggedIn } = useBusinesses();
   const ocrLanguage: OcrLanguage = "jpn+eng";
+
+  useEffect(() => {
+    void fetch("/api/vision/ocr", {
+      method: "GET",
+      cache: "no-store"
+    }).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    if (!receipt) return;
+    if (!receipt.purchaseDate || receipt.exchangeRate > 0) return;
+
+    const key = `${receipt.purchaseDate}:${receipt.originalCurrency}->${receipt.baseCurrency}`;
+    if (lastResolvedRateKeyRef.current === key) return;
+
+    let cancelled = false;
+    lastResolvedRateKeyRef.current = key;
+
+    void (async () => {
+      try {
+        const resolved = await resolveExpenseFormExchangeRate(receiptToExpenseForm(receipt));
+        if (cancelled) return;
+        setReceipt((current) =>
+          current
+            ? {
+                ...current,
+                originalCurrency: resolved.originalCurrency,
+                baseCurrency: resolved.baseCurrency,
+                exchangeRate: resolved.exchangeRate
+              }
+            : current
+        );
+      } catch {
+        if (!cancelled) {
+          lastResolvedRateKeyRef.current = null;
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [receipt]);
 
   async function handleFile(file: File | null) {
     if (!file) return;
@@ -169,8 +225,9 @@ export function ChatShell() {
       const nextImageDataUrl = await imageFileToDataUrl(file);
       setImageDataUrl(nextImageDataUrl);
 
-      const usage = getVisionUsage();
-      if (!canCallVision(usage)) {
+      const nextVisionUsage = getVisionUsage();
+      setVisionUsage(nextVisionUsage);
+      if (!canCallVision(nextVisionUsage)) {
         throw new Error("ถึงลิมิต OCR แล้ว กรุณารอหรือปรับ limit ใน Settings");
       }
 
@@ -195,7 +252,7 @@ export function ChatShell() {
         );
       }
 
-      incrementVisionUsage();
+      setVisionUsage(incrementVisionUsage());
       const ocrText = visionResult.ocrText.trim();
       const quality = checkOcrQuality(ocrText);
       if (quality.lowQuality) {
@@ -203,6 +260,11 @@ export function ChatShell() {
       }
 
       setPhase("gemini");
+      const nextGeminiUsage = getGeminiUsage();
+      setGeminiUsage(nextGeminiUsage);
+      if (!canCallGemini(nextGeminiUsage)) {
+        throw new Error("ถึงลิมิต Gemini แล้ว กรุณารอหรือเพิ่มลิมิตก่อนใช้งานต่อ");
+      }
       const geminiResponse = await fetch("/api/gemini/extract-receipt", {
         method: "POST",
         headers: {
@@ -226,6 +288,7 @@ export function ChatShell() {
         );
       }
 
+      setGeminiUsage(incrementGeminiUsage());
       setReceipt(chatReceiptFromExtraction(geminiResult.data, ocrText));
       setPhase("ready");
     } catch (err) {
@@ -254,47 +317,173 @@ export function ChatShell() {
     });
   }
 
+  function receiptToExpenseForm(nextReceipt: ChatReceipt): ExpenseFormState {
+    return {
+      ...defaultExpenseForm,
+      receiptDate: nextReceipt.purchaseDate || "",
+      storeName: nextReceipt.storeName || "",
+      detail: nextReceipt.items[0]?.displayName ? `ค่า ${nextReceipt.items[0].displayName}` : "",
+      documentType: "receipt",
+      category: nextReceipt.items[0]?.category ?? "Other",
+      paymentStatus: "paid",
+      amount: nextReceipt.total ?? 0,
+      currency: nextReceipt.originalCurrency,
+      originalCurrency: nextReceipt.originalCurrency,
+      baseCurrency: nextReceipt.baseCurrency,
+      exchangeRate: nextReceipt.exchangeRate,
+      exchangeRateSource: "manual",
+      exchangeRateDate: nextReceipt.purchaseDate || null,
+      manualAmountOverride: true,
+      subtotalOriginal: nextReceipt.subtotal ?? nextReceipt.total ?? 0,
+      vatOriginal: nextReceipt.tax ?? 0,
+      whtOriginal: 0,
+      totalOriginal: nextReceipt.total ?? 0,
+      subtotalBase: 0,
+      vatBase: 0,
+      whtBase: 0,
+      totalBase: 0,
+      requester: "",
+      hasTaxInvoice: false,
+      invoiceNumber: "",
+      subtotal: nextReceipt.subtotal ?? 0,
+      tax: nextReceipt.tax ?? 0,
+      withholdingTax: 0,
+      expenseType: "รายจ่าย",
+      subCategory: "",
+      vendorName: nextReceipt.storeName || "",
+      vendorTaxId: "",
+      vendorBranchName: "",
+      vendorBranchCode: "",
+      vendorAddress: "",
+      note: nextReceipt.aiMemo || ""
+    };
+  }
+
   async function saveReceipt() {
     if (!receipt || !imageDataUrl) return;
 
     try {
       const timestamp = new Date().toISOString();
+      const nextReceipt = receipt;
+      const resolvedReceiptForm = await resolveExpenseFormExchangeRate(receiptToExpenseForm(nextReceipt));
+      const subtotalOriginal = nextReceipt.subtotal ?? nextReceipt.total ?? 0;
+      const vatOriginal = nextReceipt.tax ?? 0;
+      const totalOriginal = nextReceipt.total ?? 0;
+      const amountFields = {
+        subtotalOriginal,
+        vatOriginal,
+        whtOriginal: 0,
+        totalOriginal,
+        subtotalBase: subtotalOriginal * resolvedReceiptForm.exchangeRate,
+        vatBase: vatOriginal * resolvedReceiptForm.exchangeRate,
+        whtBase: 0,
+        totalBase: totalOriginal * resolvedReceiptForm.exchangeRate,
+        exchangeRate: resolvedReceiptForm.exchangeRate
+      };
       const receiptId = createId();
       const savedReceipt: Receipt = {
         id: receiptId,
         imageDataUrl,
-        storeName: receipt.storeName || null,
-        purchaseDate: receipt.purchaseDate || null,
-        subtotal: receipt.subtotal,
-        tax: receipt.tax,
-        total: receipt.total,
-        aiMemo: receipt.aiMemo,
+        storeName: nextReceipt.storeName || null,
+        purchaseDate: nextReceipt.purchaseDate || null,
+        subtotal: amountFields.subtotalOriginal || null,
+        tax: amountFields.vatOriginal || null,
+        total: amountFields.totalOriginal,
+        aiMemo: nextReceipt.aiMemo,
         ocrLanguage,
-        ocrText: receipt.ocrText,
+        ocrText: nextReceipt.ocrText,
         status: "saved",
         createdAt: timestamp,
         updatedAt: timestamp
       };
-      const savedItems: ReceiptItem[] = receipt.items.map((item) => ({
+      const savedItems: ReceiptItem[] = nextReceipt.items.map((item) => ({
         ...item,
         receiptId,
         createdAt: timestamp,
         updatedAt: timestamp
       }));
 
-      await saveReceiptWithItems(savedReceipt, savedItems);
+      if (isLoggedIn && user && activeBusinessId) {
+        await saveExpenseWithItemsDoc({
+          user,
+          businessId: activeBusinessId,
+          expense: {
+            id: receiptId,
+            purchaseDate: resolvedReceiptForm.receiptDate || nextReceipt.purchaseDate || timestamp.slice(0, 10),
+            uploadDate: timestamp.slice(0, 10),
+            documentType: "ใบเสร็จรับเงิน",
+            paymentStatus: "paid",
+            hasTaxInvoice: false,
+            invoiceNumber: "",
+            storeName: nextReceipt.storeName || "",
+            vendorName: nextReceipt.storeName || "",
+            vendorTaxId: "",
+            vendorBranchName: "",
+            vendorBranchCode: "",
+            vendorAddress: "",
+            detail: nextReceipt.items[0]?.displayName ? `ค่า ${nextReceipt.items[0].displayName}` : "",
+            subtotal: amountFields.subtotalOriginal || null,
+            tax: amountFields.vatOriginal || null,
+            withholdingTax: 0,
+            total: amountFields.totalOriginal || null,
+            currency: resolvedReceiptForm.originalCurrency,
+            originalCurrency: resolvedReceiptForm.originalCurrency,
+            baseCurrency: resolvedReceiptForm.baseCurrency,
+            exchangeRate: amountFields.exchangeRate,
+            exchangeRateSource: resolvedReceiptForm.exchangeRateSource,
+            exchangeRateDate: resolvedReceiptForm.exchangeRateDate,
+            manualAmountOverride: true,
+            subtotalOriginal: amountFields.subtotalOriginal,
+            vatOriginal: amountFields.vatOriginal,
+            whtOriginal: 0,
+            totalOriginal: amountFields.totalOriginal,
+            subtotalBase: amountFields.subtotalBase,
+            vatBase: amountFields.vatBase,
+            whtBase: 0,
+            totalBase: amountFields.totalBase,
+            expenseType: "รายจ่าย",
+            category: nextReceipt.items[0]?.category ?? "Other",
+            subCategory: "",
+            requesterName: "",
+            memo: nextReceipt.aiMemo,
+            aiMemo: nextReceipt.aiMemo,
+            aiConfidence: "medium",
+            status: "confirmed",
+            extractionMode: "manual",
+            imageDriveFileId: "",
+            imageDriveUrl: "",
+            imageFileName: "",
+            ocrText: nextReceipt.ocrText
+          },
+          items: nextReceipt.items.map((item) => ({
+            id: item.id,
+            rawName: item.rawName,
+            displayName: item.displayName,
+            category: item.category,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice,
+            isResaleItem: item.isResaleItem,
+            productId: null,
+            memo: item.memo
+          }))
+        });
+      } else {
+        await saveReceiptWithItems(savedReceipt, savedItems);
+      }
+
       setSaved(true);
       setError(null);
-    } catch {
-      setError("บันทึกลงเครื่องไม่สำเร็จ พื้นที่ browser อาจเต็มหรือ IndexedDB ถูกบล็อก");
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "บันทึกไม่สำเร็จ");
     }
   }
 
   return (
-    <div className="mx-auto flex h-[100dvh] w-full max-w-[480px] flex-col overflow-hidden bg-[#F7F8FA] shadow-2xl sm:border-x sm:border-slate-200">
-      <ChatHeader />
+    <div className="relative mx-auto flex h-[100dvh] w-full max-w-full flex-col overflow-x-hidden bg-[#F7F8FA] shadow-2xl sm:max-w-[480px] sm:border-x sm:border-slate-200">
+      <ChatHeader visionUsage={visionUsage} geminiUsage={geminiUsage} />
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pb-24">
         <ChatMessageList
           phase={phase}
           imageUrl={imageDataUrl}

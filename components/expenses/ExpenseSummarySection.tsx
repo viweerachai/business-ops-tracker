@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Settings2 } from "lucide-react";
+import { AlertTriangle, Loader2, RefreshCw, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/expenses/MoneyInput";
 import type { ExpenseFormState, ExpenseItemState } from "@/components/expenses/new/types";
+import { resolveExpenseFormExchangeRate } from "@/lib/exchange-rate-client";
 import {
   CURRENCY_CODES,
   calculateExpenseSummaryAmounts,
@@ -152,6 +153,7 @@ export function ExpenseSummarySection({
   onChange: (form: ExpenseFormState) => void;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [refreshingRate, setRefreshingRate] = useState(false);
   const amounts = calculateExpenseSummaryAmounts(form, items);
   const itemsTotal = itemTotal(items);
   const hasCurrencyConversion = form.originalCurrency !== form.baseCurrency;
@@ -167,6 +169,23 @@ export function ExpenseSummarySection({
       ...nextForm,
       ...patchSummaryAmounts(nextForm, items)
     });
+  }
+
+  async function refreshExchangeRate() {
+    if (!hasCurrencyConversion || refreshingRate) return;
+    try {
+      setRefreshingRate(true);
+      const resolved = await resolveExpenseFormExchangeRate({
+        ...form,
+        receiptDate: form.receiptDate || new Date().toISOString().slice(0, 10)
+      });
+      onChange({
+        ...resolved,
+        ...patchSummaryAmounts(resolved, items)
+      });
+    } finally {
+      setRefreshingRate(false);
+    }
   }
 
   return (
@@ -241,9 +260,21 @@ export function ExpenseSummarySection({
                       <div className="border-t border-dashed border-[#E5E5E5]" />
 
                       <div className="grid gap-5">
-                        <h3 className="text-[19px] font-bold tracking-normal text-[#222222] md:text-[21px]">
-                          ยอดเทียบเท่า {form.baseCurrency} (ตามอัตราปัจจุบัน)
-                        </h3>
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <h3 className="text-[19px] font-bold tracking-normal text-[#222222] md:text-[21px]">
+                            ยอดเทียบเท่า {form.baseCurrency} (ตามอัตราปัจจุบัน)
+                          </h3>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={refreshExchangeRate}
+                            disabled={refreshingRate}
+                            className="h-11 rounded-xl border-blue-500/30 bg-blue-50 px-4 text-sm font-bold text-blue-700 hover:bg-blue-100"
+                          >
+                            {refreshingRate ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                            อัปเดตเรทล่าสุด
+                          </Button>
+                        </div>
                         <AmountRow
                           amounts={amounts}
                           currency={form.baseCurrency}

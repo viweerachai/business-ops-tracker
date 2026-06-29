@@ -1,16 +1,35 @@
 {
-  "name": "Local Receipt Reader",
-  "short_name": "Receipts",
-  "description": "Local-first receipt OCR for Japan resellers",
-  "start_url": "/receipts/new",
+  "id": "/",
+  "name": "Receipt Reader",
+  "short_name": "Receipt",
+  "description": "Scan receipts, review expenses, and save business costs from your phone.",
+  "start_url": "/mobile",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#f9f7f2",
+  "display_override": ["standalone", "window-controls-overlay", "browser"],
+  "orientation": "portrait",
+  "background_color": "#f5f7fb",
   "theme_color": "#0d736b",
+  "lang": "th",
+  "dir": "ltr",
+  "categories": ["business", "finance", "productivity"],
   "icons": [
     {
       "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml"
+    },
+    {
+      "src": "/icon",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

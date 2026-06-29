@@ -87,7 +87,7 @@ export function ExpenseItemsCard({
   onChange,
   originalCurrency = "JPY",
   baseCurrency = "THB",
-  exchangeRate = 1
+  exchangeRate = 0
 }: {
   items: ExpenseItemState[];
   onChange: (items: ExpenseItemState[]) => void;
@@ -137,7 +137,7 @@ export function ExpenseItemsCard({
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               <Input className="h-12 rounded-xl bg-white" placeholder="ชื่อจากใบเสร็จ" value={item.rawName} onChange={(event) => updateItem(index, { rawName: event.target.value })} />
-              <Input className="h-12 rounded-xl bg-white" placeholder="ชื่ออ่านง่าย" value={item.displayName} onChange={(event) => updateItem(index, { displayName: event.target.value })} />
+              <Input className="h-12 rounded-xl bg-white" placeholder="ชื่ออังกฤษอ่านง่าย" value={item.displayName} onChange={(event) => updateItem(index, { displayName: event.target.value })} />
             </div>
             <div className="grid gap-3 md:grid-cols-[1fr_0.85fr]">
               <label className="grid gap-2">

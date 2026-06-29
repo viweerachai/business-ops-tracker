@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   BriefcaseBusiness,
@@ -31,6 +33,8 @@ function MenuButton({
   active,
   badge,
   open,
+  href,
+  disabled,
   onClick
 }: {
   icon: React.ComponentType<{ className?: string }>;
@@ -38,20 +42,28 @@ function MenuButton({
   active?: boolean;
   badge?: string;
   open?: boolean;
+  href?: string;
+  disabled?: boolean;
   onClick?: () => void;
 }) {
   const hasDropdown = typeof open === "boolean";
+  const className = [
+    "group flex h-10 w-full items-center gap-3 rounded-xl px-3 text-left text-[14px] font-semibold transition",
+    disabled
+      ? "cursor-not-allowed bg-slate-50 text-slate-400"
+      : active
+        ? "bg-blue-50 text-blue-700"
+        : "text-slate-600 hover:bg-slate-50",
+  ].join(" ");
 
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={[
-        "group flex h-10 w-full items-center gap-3 rounded-xl px-3 text-left text-[14px] font-semibold transition",
-        active ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50",
-      ].join(" ")}
-    >
-      <Icon className={["h-4.5 w-4.5 shrink-0", active ? "text-blue-600" : "text-slate-500"].join(" ")} />
+  const content = (
+    <>
+      <Icon
+        className={[
+          "h-4.5 w-4.5 shrink-0",
+          disabled ? "text-slate-300" : active ? "text-blue-600" : "text-slate-500"
+        ].join(" ")}
+      />
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {badge ? (
         <Badge className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
@@ -61,41 +73,71 @@ function MenuButton({
       {hasDropdown ? (
         open ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />
       ) : null}
+    </>
+  );
+
+  if (href && !disabled) {
+    return (
+      <Link href={href} className={className}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={className}
+    >
+      {content}
     </button>
   );
 }
 
 function ChildRow({
   icon: Icon,
-  label
+  label,
+  disabled = true
 }: {
   icon?: React.ComponentType<{ className?: string }>;
   label: string;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
-      className="flex h-9 w-full items-center gap-2 rounded-lg pl-10 pr-3 text-left text-[13px] font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+      disabled={disabled}
+      className={[
+        "flex h-9 w-full items-center gap-2 rounded-lg pl-10 pr-3 text-left text-[13px] font-medium",
+        disabled ? "cursor-not-allowed text-slate-300" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+      ].join(" ")}
     >
-      {Icon ? <Icon className="h-4 w-4 text-slate-400" /> : <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />}
+      {Icon ? (
+        <Icon className={["h-4 w-4", disabled ? "text-slate-300" : "text-slate-400"].join(" ")} />
+      ) : (
+        <span className={["h-1.5 w-1.5 rounded-full", disabled ? "bg-slate-200" : "bg-slate-300"].join(" ")} />
+      )}
       <span className="truncate">{label}</span>
     </button>
   );
 }
 
 export function AppSidebar() {
+  const pathname = usePathname();
   const [revenueOpen, setRevenueOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(true);
 
   return (
-    <aside className="flex w-[280px] shrink-0 flex-col border-r border-slate-200 bg-white 2xl:w-[304px]">
+    <aside className="hidden w-[280px] shrink-0 flex-col border-r border-slate-200 bg-white lg:flex 2xl:w-[304px]">
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-5">
         <BusinessSwitcher />
 
         <div className="mt-8">
           <p className="mb-2 px-1 text-xs font-bold uppercase tracking-wide text-slate-400">เมนูธุรกิจ</p>
           <div className="grid gap-1">
-            <MenuButton icon={CircleDollarSign} label="รายจ่าย" active />
+            <MenuButton icon={CircleDollarSign} label="รายจ่าย" href="/expenses" active={pathname.startsWith("/expenses")} />
             <MenuButton
               icon={Receipt}
               label="รายรับ"
@@ -110,9 +152,9 @@ export function AppSidebar() {
                 ))}
               </div>
             ) : null}
-            <MenuButton icon={FolderOpen} label="เอกสารรายทั้งหมด" />
-            <MenuButton icon={Package} label="สินค้าและบริการของฉัน" />
-            <MenuButton icon={UsersRound} label="ลูกค้าของฉัน" />
+            <MenuButton icon={FolderOpen} label="เอกสารรายทั้งหมด" disabled />
+            <MenuButton icon={Package} label="สินค้าและบริการของฉัน" href="/products" active={pathname.startsWith("/products")} />
+            <MenuButton icon={UsersRound} label="ลูกค้าของฉัน" disabled />
           </div>
         </div>
 

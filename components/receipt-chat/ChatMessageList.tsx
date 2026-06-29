@@ -40,19 +40,19 @@ export function ChatMessageList({
   onToggleResale: (itemId: string, checked: boolean) => void;
 }) {
   return (
-    <div className="grid gap-4 px-4 py-4">
+    <div className="grid min-w-0 max-w-full gap-4 overflow-x-hidden px-3 py-4 sm:px-4">
       <BotBubble>
         สวัสดี 👋 ส่งรูปใบเสร็จมาได้เลย
         <br />
         ฉันจะช่วยอ่านและบันทึกต้นทุนให้
       </BotBubble>
 
-      <div className="mr-7 grid max-w-[88%] grid-cols-1 gap-2 min-[360px]:grid-cols-2">
-        <Button size="lg" className="h-12 rounded-2xl bg-blue-600 shadow-sm hover:bg-blue-700" onClick={onCamera}>
+      <div className="-mx-1 flex max-w-full gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <Button size="lg" className="h-12 shrink-0 rounded-2xl bg-blue-600 px-5 shadow-sm hover:bg-blue-700" onClick={onCamera}>
           <Camera className="h-5 w-5" />
           ถ่ายรูปใบเสร็จ
         </Button>
-        <Button size="lg" variant="outline" className="h-12 rounded-2xl bg-white shadow-sm" onClick={onGallery}>
+        <Button size="lg" variant="outline" className="h-12 shrink-0 rounded-2xl bg-white px-5 shadow-sm" onClick={onGallery}>
           <ImagePlus className="h-5 w-5" />
           อัปโหลดรูป
         </Button>
@@ -64,7 +64,7 @@ export function ChatMessageList({
       {qualityWarning ? <BotBubble className="bg-amber-50 text-amber-950">{qualityWarning}</BotBubble> : null}
       {error ? <BotBubble className="bg-red-50 text-red-900">{error}</BotBubble> : null}
       {phase === "ready" && receipt ? (
-        <div className="max-w-full">
+        <div className="min-w-0 max-w-full">
           <ReceiptResultCard
             receipt={receipt}
             saved={saved}

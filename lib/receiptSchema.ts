@@ -34,7 +34,8 @@ export const receiptExtractionSchema = {
           },
           displayName: {
             type: "string",
-            description: "Readable simplified product name."
+            description:
+              "Readable easy English product name. Use common English translation when known, otherwise use a simple romanized name."
           },
           category: {
             type: "string",

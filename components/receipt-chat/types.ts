@@ -15,6 +15,9 @@ export type ChatReceiptItem = {
 export type ChatReceipt = {
   storeName: string;
   purchaseDate: string;
+  originalCurrency: "JPY" | "THB";
+  baseCurrency: "JPY" | "THB";
+  exchangeRate: number;
   subtotal: number | null;
   tax: number | null;
   total: number | null;
@@ -26,6 +29,9 @@ export type ChatReceipt = {
 export const mockReceipt: ChatReceipt = {
   storeName: "DOUTOR 西新井西口店",
   purchaseDate: "2026/05/02",
+  originalCurrency: "JPY",
+  baseCurrency: "THB",
+  exchangeRate: 0.23,
   subtotal: null,
   tax: null,
   total: 440,

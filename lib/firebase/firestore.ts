@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   GoogleAuthProvider,
@@ -27,9 +27,26 @@ import {
 } from "firebase/firestore";
 import { getFirebaseAuth, getFirestoreDb, hasFirebaseConfig } from "@/lib/firebase/client";
 import type { FirestoreBusiness, FirestoreExpense, FirestoreExpenseItem } from "@/lib/firebase/types";
-import type { Business, Expense, ExpenseItem } from "@/lib/expenseTypes";
+import type { Business, Expense, ExpenseItem, ProductCatalogSourceItem } from "@/lib/expenseTypes";
 import { CATEGORIES } from "@/lib/types/receipt";
 import { createId } from "@/lib/utils";
+
+function formatFirebaseAuthError(error: unknown) {
+  const message = error instanceof Error ? error.message : "Firebase login failed";
+  const code = typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code ?? "") : "";
+
+  if (code.includes("auth/invalid-credential") || message.includes("INVALID_IDP_RESPONSE")) {
+    return "Firebase ไม่รับ Google token นี้ กรุณาตรวจ Google provider ใน Firebase และลองเข้าสู่ระบบใหม่";
+  }
+  if (code.includes("auth/operation-not-allowed")) {
+    return "Firebase Google sign-in ยังไม่ถูกเปิดใช้งานในโปรเจกต์นี้";
+  }
+  if (code.includes("auth/unauthorized-domain")) {
+    return "โดเมนนี้ยังไม่ได้รับอนุญาตใน Firebase Authentication";
+  }
+
+  return message;
+}
 
 function timestampToIso(value: unknown) {
   if (value && typeof value === "object" && "toDate" in value && typeof value.toDate === "function") {
@@ -92,6 +109,10 @@ export function mapBusinessDoc(data: FirestoreBusiness): Business {
 }
 
 export function mapExpenseDoc(data: FirestoreExpense): Expense {
+  const originalCurrency = data.originalCurrency ?? data.currency;
+  const baseCurrency = data.baseCurrency ?? "THB";
+  const exchangeRate = data.exchangeRate ?? (originalCurrency === baseCurrency ? 1 : 0);
+
   return {
     id: data.id,
     businessId: data.businessId,
@@ -110,9 +131,9 @@ export function mapExpenseDoc(data: FirestoreExpense): Expense {
     withholdingTax: data.withholdingTax,
     total: data.total ?? 0,
     currency: data.currency,
-    originalCurrency: data.originalCurrency ?? data.currency,
-    baseCurrency: data.baseCurrency ?? "THB",
-    exchangeRate: data.exchangeRate ?? 1,
+    originalCurrency,
+    baseCurrency,
+    exchangeRate,
     exchangeRateSource: data.exchangeRateSource ?? "manual",
     exchangeRateDate: data.exchangeRateDate ?? null,
     manualAmountOverride: data.manualAmountOverride ?? true,
@@ -166,6 +187,7 @@ export function useFirebaseUser() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const lastFailedAccessTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!hasFirebaseConfig()) {
@@ -193,6 +215,7 @@ export function useFirebaseUser() {
       const auth = getFirebaseAuth();
       if (!session?.googleAccessToken || session.googleTokenError) {
         if (auth.currentUser) await firebaseSignOut(auth);
+        lastFailedAccessTokenRef.current = null;
         if (!cancelled) {
           setUser(null);
           setLoading(false);
@@ -202,17 +225,25 @@ export function useFirebaseUser() {
       }
 
       try {
+        if (lastFailedAccessTokenRef.current === session.googleAccessToken) {
+          if (!cancelled) {
+            setLoading(false);
+          }
+          return;
+        }
         setLoading(true);
         const credential = GoogleAuthProvider.credential(null, session.googleAccessToken);
         const result = await signInWithCredential(auth, credential);
+        lastFailedAccessTokenRef.current = null;
         if (!cancelled) {
           setUser(result.user);
           setError(null);
           setLoading(false);
         }
       } catch (err) {
+        lastFailedAccessTokenRef.current = session.googleAccessToken;
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Firebase login failed");
+          setError(formatFirebaseAuthError(err));
           setLoading(false);
         }
       }
@@ -403,6 +434,51 @@ export function subscribeExpenses(user: User, businessId: string, callback: (exp
   return onSnapshot(
     query(expensesRef, orderBy("purchaseDate", "desc")),
     (snapshot) => callback(snapshot.docs.map((expenseDoc) => mapExpenseDoc(expenseDoc.data() as FirestoreExpense))),
+    onError
+  );
+}
+
+export function subscribeProductSourceItems(
+  user: User,
+  businessId: string,
+  callback: (items: ProductCatalogSourceItem[]) => void,
+  onError: (error: Error) => void
+): Unsubscribe {
+  const expensesRef = collection(db(), "users", user.uid, "businesses", businessId, "expenses");
+  let requestId = 0;
+
+  return onSnapshot(
+    query(expensesRef, orderBy("purchaseDate", "desc")),
+    (snapshot) => {
+      const currentRequestId = ++requestId;
+      void (async () => {
+        const itemGroups = await Promise.all(
+          snapshot.docs.map(async (expenseDoc) => {
+            const expense = mapExpenseDoc(expenseDoc.data() as FirestoreExpense);
+            const itemsSnap = await getDocs(collection(expenseDoc.ref, "items"));
+            return itemsSnap.docs.map((itemDoc) => {
+              const item = mapExpenseItemDoc(itemDoc.data() as FirestoreExpenseItem);
+              return {
+                ...item,
+                storeName: expense.storeName,
+                purchaseDate: expense.purchaseDate,
+                originalCurrency: expense.originalCurrency ?? expense.currency,
+                baseCurrency: expense.baseCurrency ?? "THB",
+                exchangeRate:
+                  expense.exchangeRate ?? ((expense.originalCurrency ?? expense.currency) === (expense.baseCurrency ?? "THB") ? 1 : 0),
+                expenseDetail: expense.detail
+              } satisfies ProductCatalogSourceItem;
+            });
+          })
+        );
+
+        if (currentRequestId !== requestId) return;
+        callback(itemGroups.flat());
+      })().catch((err) => {
+        if (currentRequestId !== requestId) return;
+        onError(err instanceof Error ? err : new Error("โหลดข้อมูลสินค้าไม่สำเร็จ"));
+      });
+    },
     onError
   );
 }

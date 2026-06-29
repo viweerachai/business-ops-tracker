@@ -12,6 +12,11 @@ function yen(value: number | null) {
   return `¥${String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
 }
 
+function money(value: number | null, currency: ChatReceipt["originalCurrency"] | ChatReceipt["baseCurrency"]) {
+  if (value === null) return "-";
+  return `${currency} ${String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+}
+
 export function ReceiptResultCard({
   receipt,
   saved,
@@ -30,7 +35,7 @@ export function ReceiptResultCard({
   onToggleResale: (itemId: string, checked: boolean) => void;
 }) {
   return (
-    <Card className="w-full overflow-hidden rounded-3xl border-slate-200 bg-white shadow-[0_12px_34px_rgba(15,23,42,0.09)]">
+    <Card className="min-w-0 max-w-full overflow-hidden rounded-3xl border-slate-200 bg-white shadow-[0_12px_34px_rgba(15,23,42,0.09)]">
       <CardHeader className="gap-3 border-b border-emerald-100 bg-emerald-50 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -42,29 +47,51 @@ export function ReceiptResultCard({
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="grid gap-4 p-4">
-        <div className="grid gap-2 text-sm">
+      <CardContent className="grid min-w-0 gap-4 overflow-x-hidden p-4">
+        <div className="grid min-w-0 gap-2 text-sm">
           <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-3 py-2.5">
             <p className="text-xs font-bold text-slate-500">ร้าน</p>
             <p className="min-w-0 truncate text-right font-black text-slate-950">{receipt.storeName || "DOUTOR 西新井西口店"}</p>
           </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-2xl bg-slate-50 p-3">
+              <p className="text-xs font-bold text-slate-500">สกุลเงิน</p>
+              <p className="mt-1 truncate font-black text-slate-950">{receipt.originalCurrency}</p>
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-3">
+              <p className="text-xs font-bold text-slate-500">สกุลหลัก</p>
+              <p className="mt-1 truncate font-black text-slate-950">{receipt.baseCurrency}</p>
+            </div>
+            <div className="rounded-2xl bg-blue-50 p-3">
+              <p className="text-xs font-bold text-blue-700">เรท</p>
+              <p className="mt-1 truncate font-black text-blue-700">{receipt.exchangeRate > 0 ? receipt.exchangeRate.toFixed(4) : "-"}</p>
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-2xl bg-slate-50 p-3">
               <p className="text-xs font-bold text-slate-500">วันที่</p>
-              <p className="mt-1 font-black text-slate-950">{receipt.purchaseDate || "2026/05/02"}</p>
+              <p className="mt-1 truncate font-black text-slate-950">{receipt.purchaseDate || "2026/05/02"}</p>
             </div>
-            <div className="rounded-2xl bg-blue-50 p-3">
+            <div className="min-w-0 rounded-2xl bg-blue-50 p-3">
               <p className="text-xs font-bold text-blue-700">รวม</p>
-              <p className="mt-1 text-lg font-black text-blue-700">{yen(receipt.total)}</p>
+              <p className="mt-1 truncate text-lg font-black text-blue-700">{yen(receipt.total)}</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
-            <div className="rounded-2xl bg-slate-50 p-3">小計 <span className="font-bold text-slate-800">{yen(receipt.subtotal)}</span></div>
-            <div className="rounded-2xl bg-slate-50 p-3">税 <span className="font-bold text-slate-800">{yen(receipt.tax)}</span></div>
+            <div className="min-w-0 truncate rounded-2xl bg-slate-50 p-3">小計 <span className="font-bold text-slate-800">{yen(receipt.subtotal)}</span></div>
+            <div className="min-w-0 truncate rounded-2xl bg-slate-50 p-3">税 <span className="font-bold text-slate-800">{yen(receipt.tax)}</span></div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
+            <div className="min-w-0 truncate rounded-2xl bg-emerald-50 p-3">
+              {receipt.baseCurrency} มูลค่ารวม <span className="font-bold text-emerald-700">{money(receipt.total ? receipt.total * receipt.exchangeRate : null, receipt.baseCurrency)}</span>
+            </div>
+            <div className="min-w-0 truncate rounded-2xl bg-emerald-50 p-3">
+              {receipt.baseCurrency} ราคาเฉลี่ย <span className="font-bold text-emerald-700">{money(receipt.total ? receipt.total * receipt.exchangeRate : null, receipt.baseCurrency)}</span>
+            </div>
           </div>
         </div>
 
-        <div className="grid gap-2">
+        <div className="grid min-w-0 max-w-full gap-2 overflow-x-hidden">
           <div className="flex items-center justify-between">
             <p className="text-sm font-black text-slate-950">รายการสินค้า ({receipt.items.length})</p>
           </div>
@@ -80,19 +107,19 @@ export function ReceiptResultCard({
         <div className="grid grid-cols-2 gap-2">
           <Button variant="outline" className="h-11 rounded-2xl bg-white" onClick={onViewOcr}>
             <FileText className="h-4 w-4" />
-            ดู OCR
+            <span className="truncate">ดู OCR</span>
           </Button>
           <Button variant="outline" className="h-11 rounded-2xl bg-white" onClick={onEditAll}>
             <Pencil className="h-4 w-4" />
-            แก้ไขทั้งหมด
+            <span className="truncate">แก้ไขทั้งหมด</span>
           </Button>
           <Button variant="outline" className="h-11 rounded-2xl bg-white" onClick={onAddItem}>
             <ListPlus className="h-4 w-4" />
-            เพิ่มรายการ
+            <span className="truncate">เพิ่มรายการ</span>
           </Button>
           <Button className="h-11 rounded-2xl bg-blue-600 text-white hover:bg-blue-700" onClick={onSave}>
             <Save className="h-4 w-4" />
-            {saved ? "บันทึกแล้ว" : "บันทึก"}
+            <span className="truncate">{saved ? "บันทึกแล้ว" : "บันทึก"}</span>
           </Button>
         </div>
       </CardContent>

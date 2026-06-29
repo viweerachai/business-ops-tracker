@@ -1,6 +1,6 @@
 import type { ExpenseFormState, ExpenseItemState } from "@/components/expenses/new/types";
 
-export const CURRENCY_CODES = ["THB", "JPY", "USD", "EUR"] as const;
+export const CURRENCY_CODES = ["THB", "JPY"] as const;
 export type CurrencyCode = (typeof CURRENCY_CODES)[number];
 
 export type ExpenseSummaryAmounts = {
@@ -31,7 +31,7 @@ export function itemTotal(items: ExpenseItemState[]) {
 export function normalizedExchangeRate(form: Pick<ExpenseFormState, "originalCurrency" | "baseCurrency" | "exchangeRate">) {
   if (form.originalCurrency === form.baseCurrency) return 1;
   const rate = safeNumber(form.exchangeRate);
-  return rate > 0 ? rate : 1;
+  return rate > 0 ? rate : 0;
 }
 
 export function calculateExpenseSummaryAmounts(

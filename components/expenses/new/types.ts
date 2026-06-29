@@ -8,11 +8,11 @@ export type ExpenseFormState = {
   category: ReceiptCategory;
   paymentStatus: "paid" | "unpaid" | "review";
   amount: number;
-  currency: "JPY" | "THB" | "USD" | "EUR";
-  originalCurrency: "JPY" | "THB" | "USD" | "EUR";
-  baseCurrency: "JPY" | "THB" | "USD" | "EUR";
+  currency: "THB" | "JPY";
+  originalCurrency: "THB" | "JPY";
+  baseCurrency: "THB" | "JPY";
   exchangeRate: number;
-  exchangeRateSource: "manual";
+  exchangeRateSource: "manual" | "api";
   exchangeRateDate: string | null;
   manualAmountOverride: boolean;
   subtotalOriginal: number;
@@ -64,7 +64,7 @@ export const defaultExpenseForm: ExpenseFormState = {
   currency: "THB",
   originalCurrency: "THB",
   baseCurrency: "THB",
-  exchangeRate: 1,
+  exchangeRate: 0,
   exchangeRateSource: "manual",
   exchangeRateDate: null,
   manualAmountOverride: true,
