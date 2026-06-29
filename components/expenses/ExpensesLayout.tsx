@@ -2,16 +2,18 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload } from "lucide-react";
+import { Bell, Upload } from "lucide-react";
 import { CreateBusinessDialog } from "@/components/business/CreateBusinessDialog";
 import { BusinessSwitcher } from "@/components/business/BusinessSwitcher";
 import { AppSidebar } from "@/components/expenses/AppSidebar";
 import { BusinessHeader } from "@/components/expenses/BusinessHeader";
+import { CategoryBreakdown } from "@/components/expenses/CategoryBreakdown";
 import { DeleteExpenseDialog } from "@/components/expenses/DeleteExpenseDialog";
 import { ExpenseFilters } from "@/components/expenses/ExpenseFilters";
 import { MobileBottomNav } from "@/components/expenses/MobileBottomNav";
 import { ExpenseTable, type ExpenseMonthGroupData } from "@/components/expenses/ExpenseTable";
 import { ExpenseTabs, type ExpenseTab } from "@/components/expenses/ExpenseTabs";
+import { SpendingChart } from "@/components/expenses/SpendingChart";
 import { SummaryCards } from "@/components/expenses/SummaryCards";
 import { Button } from "@/components/ui/button";
 import { useBusinesses } from "@/hooks/useBusinesses";
@@ -66,6 +68,7 @@ export function ExpensesLayout() {
   const [activeTab, setActiveTab] = useState<ExpenseTab>("expenses");
   const [createBusinessOpen, setCreateBusinessOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
+  const [showChart, setShowChart] = useState(true);
 
   const {
     activeBusiness,
@@ -96,6 +99,11 @@ export function ExpensesLayout() {
     .filter((e) => sameYear(e.purchaseDate, currentDate))
     .reduce((sum, e) => sum + e.total, 0);
 
+  // pending/review count for notification badge
+  const pendingCount = expenses.filter(
+    (e) => e.paymentStatus === "pending" || e.paymentStatus === "review_needed"
+  ).length;
+
   const groups = useMemo(
     () => groupExpensesByMonth(filteredExpenses),
     [filteredExpenses]
@@ -110,13 +118,30 @@ export function ExpensesLayout() {
   return (
     <main className="h-[100dvh] overflow-hidden bg-slate-50 text-slate-900">
       <div className="flex h-[100dvh] min-h-0">
-        <AppSidebar />
+        <AppSidebar pendingCount={pendingCount} />
 
         {/* Main content */}
         <section className="min-w-0 flex-1 overflow-auto">
           {/* Mobile top bar */}
-          <div className="sticky top-0 z-20 flex h-14 items-center border-b border-slate-200 bg-white/95 px-4 backdrop-blur lg:hidden">
-            <BusinessSwitcher />
+          <div className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur lg:hidden">
+            <div className="flex-1 min-w-0 pr-3">
+              <BusinessSwitcher />
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                aria-label="การแจ้งเตือน"
+                className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+                onClick={() => router.push("/expenses/new")}
+              >
+                <Bell className="h-5 w-5" />
+                {pendingCount > 0 ? (
+                  <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white leading-none">
+                    {pendingCount}
+                  </span>
+                ) : null}
+              </button>
+            </div>
           </div>
 
           <div className="px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-8 lg:pt-7">
@@ -124,6 +149,7 @@ export function ExpensesLayout() {
             <BusinessHeader
               businessName={activeBusiness?.name}
               phone={activeBusiness?.phone}
+              plan={activeBusiness?.plan}
               onUpload={() => router.push("/expenses/new")}
               onEditBusiness={() => {}}
               onGoogleDrive={() => {}}
@@ -144,6 +170,24 @@ export function ExpensesLayout() {
                 totalThisYear={totalThisYear}
               />
             </div>
+
+            {/* Charts row */}
+            <div className="mt-2 flex items-center justify-end">
+              <button
+                type="button"
+                className="text-[12px] font-semibold text-slate-400 hover:text-teal-600 transition-colors"
+                onClick={() => setShowChart((v) => !v)}
+              >
+                {showChart ? "ซ่อนกราฟ" : "แสดงกราฟ"}
+              </button>
+            </div>
+
+            {showChart ? (
+              <div className="mt-2 grid gap-4 xl:grid-cols-[1fr_320px]">
+                <SpendingChart expenses={expenses} />
+                <CategoryBreakdown expenses={expenses} />
+              </div>
+            ) : null}
 
             {/* Tabs + Filters */}
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

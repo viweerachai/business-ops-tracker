@@ -1,4 +1,4 @@
-import { Receipt, TrendingDown, Calendar } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Calendar, Minus, Receipt, TrendingDown } from "lucide-react";
 
 const cardConfigs = [
   {
@@ -21,25 +21,69 @@ const cardConfigs = [
   }
 ];
 
+type TrendDir = "up" | "down" | "flat";
+
+function TrendBadge({ dir, label }: { dir: TrendDir; label: string }) {
+  if (dir === "up") {
+    return (
+      <div className="flex items-center gap-0.5 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600">
+        <ArrowUpRight className="h-3 w-3" />
+        {label}
+      </div>
+    );
+  }
+  if (dir === "down") {
+    return (
+      <div className="flex items-center gap-0.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-600">
+        <ArrowDownRight className="h-3 w-3" />
+        {label}
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-0.5 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-400">
+      <Minus className="h-3 w-3" />
+      เท่ากัน
+    </div>
+  );
+}
+
 export function SummaryCards({
   monthLabel,
   yearLabel,
   receiptCountThisMonth,
   totalThisMonth,
-  totalThisYear
+  totalThisYear,
+  receiptCountPrevMonth = 3,
+  totalPrevMonth = 18240,
 }: {
   monthLabel: string;
   yearLabel: string;
   receiptCountThisMonth: number;
   totalThisMonth: number;
   totalThisYear: number;
+  receiptCountPrevMonth?: number;
+  totalPrevMonth?: number;
 }) {
+  // Trend vs previous month
+  const countDiff = receiptCountThisMonth - receiptCountPrevMonth;
+  const countTrend: TrendDir = countDiff > 0 ? "up" : countDiff < 0 ? "down" : "flat";
+  const countTrendLabel = `${Math.abs(countDiff)} รายการ`;
+
+  const amtDiffPct = totalPrevMonth > 0
+    ? Math.round(((totalThisMonth - totalPrevMonth) / totalPrevMonth) * 100)
+    : 0;
+  const amtTrend: TrendDir = amtDiffPct > 0 ? "up" : amtDiffPct < 0 ? "down" : "flat";
+  const amtTrendLabel = `${Math.abs(amtDiffPct)}%`;
+
   const cards = [
     {
       label: "ใบเสร็จเดือนนี้",
       sublabel: monthLabel,
       value: receiptCountThisMonth.toLocaleString("th-TH"),
       unit: "รายการ",
+      trend: countTrend,
+      trendLabel: countTrendLabel,
       ...cardConfigs[0]
     },
     {
@@ -47,6 +91,8 @@ export function SummaryCards({
       sublabel: monthLabel,
       value: `฿${totalThisMonth.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
       unit: "บาท",
+      trend: amtTrend,
+      trendLabel: amtTrendLabel,
       ...cardConfigs[1]
     },
     {
@@ -54,6 +100,8 @@ export function SummaryCards({
       sublabel: yearLabel,
       value: `฿${totalThisYear.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
       unit: "บาท",
+      trend: "flat" as TrendDir,
+      trendLabel: "",
       ...cardConfigs[2]
     }
   ];
@@ -74,12 +122,18 @@ export function SummaryCards({
                   <p className="mt-0.5 text-[11px] font-medium text-slate-400">{card.sublabel}</p>
                 </div>
                 <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${card.iconBg}`}>
-                  <Icon className={`h-4.5 w-4.5 ${card.iconColor}`} />
+                  <Icon className={`h-4 w-4 ${card.iconColor}`} />
                 </div>
               </div>
               <p className="mt-3 text-[26px] font-bold leading-none tracking-tight text-slate-900 sm:text-[28px]">
                 {card.value}
               </p>
+              <div className="mt-3 flex items-center gap-2">
+                {card.trendLabel ? (
+                  <TrendBadge dir={card.trend} label={card.trendLabel} />
+                ) : null}
+                <span className="text-[11px] text-slate-400">vs เดือนที่แล้ว</span>
+              </div>
             </div>
           </div>
         );

@@ -15,7 +15,8 @@ import {
   ShieldCheck,
   UsersRound,
   LayoutDashboard,
-  FileText
+  FileText,
+  RefreshCw
 } from "lucide-react";
 import { BusinessSwitcher } from "@/components/business/BusinessSwitcher";
 import { UserAccountMenu } from "@/components/layout/UserAccountMenu";
@@ -134,7 +135,7 @@ function SubItem({
   );
 }
 
-export function AppSidebar() {
+export function AppSidebar({ pendingCount = 0 }: { pendingCount?: number }) {
   const pathname = usePathname();
   const [revenueOpen, setRevenueOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
@@ -163,6 +164,7 @@ export function AppSidebar() {
             label="รายจ่าย"
             href="/expenses"
             active={pathname.startsWith("/expenses")}
+            badge={pendingCount > 0 ? String(pendingCount) : undefined}
           />
           <NavItem
             icon={Receipt}
@@ -207,8 +209,17 @@ export function AppSidebar() {
           <NavItem icon={FileText} label="รายงาน" disabled />
         </div>
 
-        {/* User account at bottom */}
-        <div className="mt-auto pt-6">
+        {/* Sync status + User account at bottom */}
+        <div className="mt-auto space-y-3 pt-6">
+          {/* Last sync strip */}
+          <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+            <RefreshCw className="h-3 w-3 shrink-0 text-teal-500" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">ซิงก์ล่าสุด</p>
+              <p className="truncate text-[11px] font-semibold text-slate-600">30 มิ.ย. 2026 · 08:00</p>
+            </div>
+            <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
+          </div>
           <UserAccountMenu />
         </div>
       </div>
