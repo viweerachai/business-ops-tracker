@@ -1,78 +1,28 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
-  createBusinessDoc,
-  deleteBusinessDoc,
-  ensureDefaultBusinessDoc,
-  seedDefaultCategories,
-  setActiveBusinessDoc,
-  subscribeBusinesses,
-  updateBusinessDoc,
-  useFirebaseUser
-} from "@/lib/firebase/firestore";
-import { formatFirestoreError } from "@/lib/firebase/errors";
+  MOCK_ACTIVE_BUSINESS_ID,
+  MOCK_BUSINESSES,
+  MOCK_USER
+} from "@/lib/mockData";
 import type { Business } from "@/lib/expenseTypes";
 
+// ---------------------------------------------------------------------------
+// Mock version — bypasses Firebase/auth entirely for demo purposes
+// ---------------------------------------------------------------------------
+
 export function useBusinesses() {
-  const { user, loading: authLoading, error: authError, hasSession } = useFirebaseUser();
-  const [businesses, setBusinesses] = useState<Business[]>([]);
-  const [activeBusinessId, setActiveBusinessIdState] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      setBusinesses([]);
-      setActiveBusinessIdState(null);
-      setLoading(false);
-      setError(authError);
-      return;
-    }
-    const currentUser = user;
-
-    let cancelled = false;
-    let unsubscribe: (() => void) | null = null;
-
-    async function start() {
-      try {
-        setLoading(true);
-        await ensureDefaultBusinessDoc(currentUser);
-        await seedDefaultCategories(currentUser);
-        if (cancelled) return;
-
-        unsubscribe = subscribeBusinesses(
-          currentUser,
-          (nextState) => {
-            if (cancelled) return;
-            setBusinesses(nextState.businesses);
-            setActiveBusinessIdState(nextState.activeBusinessId);
-            setLoading(false);
-            setError(null);
-          },
-          (err) => {
-            if (cancelled) return;
-            setError(formatFirestoreError(err));
-            setLoading(false);
-          }
-        );
-      } catch (err) {
-        if (cancelled) return;
-        setError(formatFirestoreError(err));
-        setLoading(false);
-      }
-    }
-
-    start();
-    return () => {
-      cancelled = true;
-      unsubscribe?.();
-    };
-  }, [authError, authLoading, user]);
+  const [businesses, setBusinesses] = useState<Business[]>(MOCK_BUSINESSES);
+  const [activeBusinessId, setActiveBusinessIdState] = useState<string>(
+    MOCK_ACTIVE_BUSINESS_ID
+  );
 
   const activeBusiness = useMemo(
-    () => businesses.find((business) => business.id === activeBusinessId) ?? businesses[0] ?? null,
+    () =>
+      businesses.find((b) => b.id === activeBusinessId) ??
+      businesses[0] ??
+      null,
     [activeBusinessId, businesses]
   );
 
@@ -80,25 +30,36 @@ export function useBusinesses() {
     businesses,
     activeBusiness,
     activeBusinessId: activeBusiness?.id ?? null,
-    user,
-    isLoggedIn: Boolean(user && hasSession),
-    loading: authLoading || loading,
-    error,
+    user: { uid: "mock-uid", email: MOCK_USER.email, displayName: MOCK_USER.name },
+    isLoggedIn: true,
+    loading: false,
+    error: null,
     createBusiness: async (input: { ownerEmail?: string; name: string; phone?: string }) => {
-      if (!user) throw new Error("กรุณาเข้าสู่ระบบ Google ก่อนสร้างธุรกิจ");
-      return createBusinessDoc(user, input);
+      const newBusiness: Business = {
+        id: `biz-${Date.now()}`,
+        ownerEmail: input.ownerEmail ?? MOCK_USER.email,
+        name: input.name,
+        phone: input.phone,
+        plan: "free",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      setBusinesses((prev) => [...prev, newBusiness]);
     },
     updateBusiness: async (businessId: string, patch: { name?: string; phone?: string }) => {
-      if (!user) throw new Error("กรุณาเข้าสู่ระบบ Google ก่อนแก้ไขธุรกิจ");
-      return updateBusinessDoc(user, businessId, patch);
+      setBusinesses((prev) =>
+        prev.map((b) =>
+          b.id === businessId
+            ? { ...b, ...patch, updatedAt: new Date().toISOString() }
+            : b
+        )
+      );
     },
     deleteBusiness: async (businessId: string) => {
-      if (!user) throw new Error("กรุณาเข้าสู่ระบบ Google ก่อนลบธุรกิจ");
-      return deleteBusinessDoc(user, businessId);
+      setBusinesses((prev) => prev.filter((b) => b.id !== businessId));
     },
     setActiveBusinessId: async (businessId: string) => {
-      if (!user) throw new Error("กรุณาเข้าสู่ระบบ Google ก่อนสลับธุรกิจ");
-      return setActiveBusinessDoc(user, businessId);
+      setActiveBusinessIdState(businessId);
     }
   };
 }

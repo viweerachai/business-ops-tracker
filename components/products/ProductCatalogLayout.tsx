@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Boxes, Package, Search, Tag } from "lucide-react";
-import { signIn } from "next-auth/react";
+import { Boxes, Package, Search, Tag } from "lucide-react";
 import { CreateBusinessDialog } from "@/components/business/CreateBusinessDialog";
 import { BusinessSwitcher } from "@/components/business/BusinessSwitcher";
 import { AppSidebar } from "@/components/expenses/AppSidebar";
 import { MobileBottomNav } from "@/components/expenses/MobileBottomNav";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBusinesses } from "@/hooks/useBusinesses";
 import { useProductCatalog } from "@/hooks/useProductCatalog";
@@ -197,9 +195,6 @@ export function ProductCatalogLayout() {
   const {
     activeBusiness,
     activeBusinessId,
-    isLoggedIn,
-    loading: businessLoading,
-    error: businessError,
     createBusiness
   } = useBusinesses();
   const { products, sourceItems, loading, error } = useProductCatalog(activeBusinessId);
@@ -252,48 +247,7 @@ export function ProductCatalogLayout() {
               ) : null}
             </div>
 
-            {!businessLoading && !isLoggedIn ? (
-              <div className="mt-8 rounded-2xl border border-blue-100 bg-white p-10 text-center shadow-sm">
-                <p className="text-xl font-black text-slate-900">กรุณาเข้าสู่ระบบ Google เพื่อดูคลังสินค้า</p>
-                <p className="mt-2 text-slate-500">ข้อมูลสินค้าจะโหลดจาก Firestore หลังเข้าสู่ระบบ</p>
-                <Button className="mt-5 h-12 rounded-xl bg-slate-950 px-6 text-white" onClick={() => signIn("google", { callbackUrl: "/products" })}>
-                  เข้าสู่ระบบ Google
-                </Button>
-              </div>
-            ) : null}
-
-            {isLoggedIn && !businessLoading && !hasBusiness ? (
-              <div className="mt-8 rounded-2xl border border-dashed border-blue-200 bg-white p-10 text-center shadow-sm">
-                <p className="text-2xl font-black text-slate-950">สร้างธุรกิจก่อนเริ่มใช้งาน</p>
-                <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500">
-                  เมื่อมีธุรกิจแล้ว ระบบจะรวมสินค้าและบริการจากใบเสร็จทั้งหมดของธุรกิจนั้นให้โดยอัตโนมัติ
-                </p>
-                <Button
-                  className="mt-6 h-12 rounded-xl bg-slate-950 px-6 text-white hover:bg-slate-800"
-                  onClick={() => setCreateBusinessOpen(true)}
-                >
-                  สร้างธุรกิจแรก
-                </Button>
-              </div>
-            ) : null}
-
-            {businessError || error ? (
-              <div className="mt-8 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800">
-                <AlertCircle className="mt-0.5 h-5 w-5" />
-                <div>
-                  <p className="font-black">โหลดข้อมูลสินค้าไม่สำเร็จ</p>
-                  <p className="mt-1 text-sm">{businessError || error}</p>
-                  <Button
-                    className="mt-4 h-10 rounded-xl bg-slate-950 px-4 text-white hover:bg-slate-800"
-                    onClick={() => signIn("google", { callbackUrl: "/products" })}
-                  >
-                    เข้าสู่ระบบ Google
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-
-            {isLoggedIn && hasBusiness ? (
+            {hasBusiness ? (
               <>
                 <div className="mt-8 grid gap-4 md:grid-cols-3">
                   <SummaryCard
@@ -307,7 +261,7 @@ export function ProductCatalogLayout() {
                     hint={`จาก ${sourceItems.length.toLocaleString("th-TH")} รายการย่อย`}
                   />
                   <SummaryCard
-                    label="ร้านค้าที่พบ"
+                    label="��้านค้าที่พบ"
                     value={totalStores.toLocaleString("th-TH")}
                     hint="นับจากชื่อร้านในใบเสร็จ"
                   />
@@ -325,9 +279,9 @@ export function ProductCatalogLayout() {
               </>
             ) : null}
 
-            {isLoggedIn && hasBusiness && (loading || businessLoading) ? <LoadingCards /> : null}
+            {hasBusiness && loading ? <LoadingCards /> : null}
 
-            {isLoggedIn && hasBusiness && !loading && !businessLoading && filteredProducts.length === 0 ? (
+            {hasBusiness && !loading && filteredProducts.length === 0 ? (
               <div className="mt-8 rounded-2xl border border-slate-100 bg-white p-10 text-center shadow-sm">
                 <Package className="mx-auto h-10 w-10 text-slate-300" />
                 <p className="mt-4 text-xl font-black text-slate-900">ยังไม่มีสินค้าในคลังรวม</p>
@@ -335,7 +289,7 @@ export function ProductCatalogLayout() {
               </div>
             ) : null}
 
-            {isLoggedIn && hasBusiness && !loading && !businessLoading && filteredProducts.length > 0 ? (
+            {hasBusiness && !loading && filteredProducts.length > 0 ? (
               <div className="mt-6 grid gap-4">
                 {filteredProducts.map((product) => (
                   <ProductCard key={product.key} product={product} />
