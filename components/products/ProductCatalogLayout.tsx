@@ -89,15 +89,15 @@ function SummaryCard({
   accent?: "teal" | "blue" | "slate";
 }) {
   const accentMap = {
-    teal: "border-l-teal-500 bg-teal-50/40",
-    blue: "border-l-blue-500 bg-blue-50/40",
-    slate: "border-l-slate-300 bg-slate-50/40"
+    teal: "border-t-teal-500",
+    blue: "border-t-blue-500",
+    slate: "border-t-slate-300"
   };
   return (
-    <div className={`rounded-xl border border-slate-200 border-l-4 bg-white p-4 shadow-sm ${accentMap[accent]}`}>
-      <p className="text-[12px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-2 text-[26px] font-bold leading-none tracking-tight text-slate-950">{value}</p>
-      <p className="mt-2 text-xs font-medium text-slate-400">{hint}</p>
+    <div className={`rounded-xl border border-slate-200 border-t-2 bg-white p-3 shadow-sm sm:p-4 ${accentMap[accent]}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="mt-1.5 text-[22px] font-bold leading-none tracking-tight text-slate-950 sm:text-[26px]">{value}</p>
+      <p className="mt-1.5 text-[11px] font-medium text-slate-400">{hint}</p>
     </div>
   );
 }
@@ -117,11 +117,11 @@ function ProductCard({ product }: { product: ProductCatalogEntry }) {
   return (
     <div className="group rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
       {/* Card header */}
-      <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
+      <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 px-4 py-3">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[17px] font-bold text-slate-950">{product.name}</p>
+          <p className="truncate text-[15px] font-bold text-slate-950 sm:text-[17px]">{product.name}</p>
           {product.rawNames.length > 1 ? (
-            <p className="mt-0.5 line-clamp-1 text-[13px] text-slate-400">{product.rawNames.slice(0, 3).join(" · ")}</p>
+            <p className="mt-0.5 line-clamp-1 text-[12px] text-slate-400">{product.rawNames.slice(0, 3).join(" · ")}</p>
           ) : null}
         </div>
         <div className="inline-flex shrink-0 rounded-lg border border-slate-200 bg-slate-50 p-0.5">
@@ -135,7 +135,7 @@ function ProductCard({ product }: { product: ProductCatalogEntry }) {
                 onClick={() => { if (!disabled) setCurrencyView(currency); }}
                 disabled={disabled}
                 className={[
-                  "min-w-[52px] rounded-md px-2.5 py-1 text-[11px] font-bold transition",
+                  "min-w-[44px] rounded-md px-2 py-1 text-[11px] font-bold transition",
                   active ? "bg-slate-900 text-white shadow-sm" : "",
                   disabled ? "cursor-not-allowed text-slate-300" : active ? "" : "text-slate-500 hover:bg-white hover:text-slate-800"
                 ].join(" ")}
@@ -148,28 +148,28 @@ function ProductCard({ product }: { product: ProductCatalogEntry }) {
       </div>
 
       {/* Card body */}
-      <div className="grid gap-3 p-5 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 p-3 sm:gap-3 sm:p-5">
         {/* Quantity */}
-        <div className="rounded-lg bg-slate-50 px-4 py-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">จำนวนรวม</p>
-          <p className="mt-1.5 text-xl font-bold text-slate-900">{product.totalQuantity.toLocaleString("th-TH")}</p>
-          <p className="mt-0.5 text-[11px] text-slate-400">ชิ้น</p>
+        <div className="rounded-lg bg-slate-50 px-3 py-2.5 sm:px-4 sm:py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[11px]">จำนวน</p>
+          <p className="mt-1 truncate text-[15px] font-bold text-slate-900 sm:mt-1.5 sm:text-xl">{product.totalQuantity.toLocaleString("th-TH")}</p>
+          <p className="mt-0.5 text-[10px] text-slate-400 sm:text-[11px]">ชิ้น</p>
         </div>
         {/* Total value */}
-        <div className="rounded-lg bg-slate-50 px-4 py-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">มูลค่ารวม</p>
-          <p className="mt-1.5 truncate text-xl font-bold text-slate-900">
+        <div className="rounded-lg bg-slate-50 px-3 py-2.5 sm:px-4 sm:py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[11px]">มูลค่า</p>
+          <p className="mt-1 truncate text-[15px] font-bold text-slate-900 sm:mt-1.5 sm:text-xl">
             {hasActiveCurrency ? formatDisplayMoney(product, currencyView) : "-"}
           </p>
-          <p className="mt-0.5 text-[11px] text-slate-400">{currencyView}</p>
+          <p className="mt-0.5 text-[10px] text-slate-400 sm:text-[11px]">{currencyView}</p>
         </div>
         {/* Avg price */}
-        <div className="rounded-lg bg-slate-50 px-4 py-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">ราคาเฉลี่ย</p>
-          <p className="mt-1.5 truncate text-xl font-bold text-slate-900">
+        <div className="rounded-lg bg-slate-50 px-3 py-2.5 sm:px-4 sm:py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[11px]">เฉลี่ย</p>
+          <p className="mt-1 truncate text-[15px] font-bold text-slate-900 sm:mt-1.5 sm:text-xl">
             {hasActiveCurrency ? formatAverageMoney(product, currencyView) : "-"}
           </p>
-          <p className="mt-0.5 text-[11px] text-slate-400">{hasActiveCurrency ? "ต่อชิ้น" : "ไม่มีข้อมูลสกุลนี้"}</p>
+          <p className="mt-0.5 text-[10px] text-slate-400 sm:text-[11px]">{hasActiveCurrency ? "ต่อชิ้น" : "ไม่มีข้อมูล"}</p>
         </div>
       </div>
 
@@ -225,25 +225,21 @@ export function ProductCatalogLayout() {
         <AppSidebar />
         <section className="min-w-0 flex-1 overflow-auto">
           {/* Mobile top bar */}
-          <div className="sticky top-0 z-20 border-b border-slate-200 bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
+          <div className="sticky top-0 z-20 border-b border-slate-200 bg-background/95 px-4 py-2.5 backdrop-blur lg:hidden">
             <BusinessSwitcher />
           </div>
 
           <div className="w-full max-w-full px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-8 lg:pt-7">
             {/* Page header */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[12px] font-semibold text-blue-700">
-                  <Boxes className="h-3.5 w-3.5" />
-                  รวมสินค้าจากทุกร้านค้าในธุรกิจนี้
-                </div>
-                <h1 className="text-[26px] font-bold tracking-tight text-slate-950">สินค้าและบริการ</h1>
-                <p className="mt-1.5 text-sm leading-relaxed text-slate-500">
-                  รวมจากทุกใบเสร็จ — ถ้าชื่อตรงกัน ระบบรวมเป็นรายการเดียวอัตโนมัติ
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h1 className="text-[22px] font-bold tracking-tight text-slate-950 sm:text-[26px]">สินค้าและบริการ</h1>
+                <p className="mt-0.5 text-[13px] leading-relaxed text-slate-400 sm:text-sm">
+                  รวมจากทุกใบเสร็จ — ชื่อซ้ำกันระบบรวมอัตโนมัติ
                 </p>
               </div>
               {activeBusiness ? (
-                <div className="shrink-0 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">
+                <div className="hidden shrink-0 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm sm:block">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">ธุรกิจปัจจุบัน</p>
                   <p className="mt-1 text-[15px] font-bold text-slate-900">{activeBusiness.name}</p>
                 </div>
@@ -252,8 +248,8 @@ export function ProductCatalogLayout() {
 
             {hasBusiness ? (
               <>
-                {/* KPI row */}
-                <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                {/* KPI row — always 3 cols */}
+                <div className="mt-4 grid grid-cols-3 gap-2 sm:mt-6 sm:gap-3">
                   <SummaryCard
                     label="สินค้าไม่ซ้ำ"
                     value={String(filteredProducts.length)}

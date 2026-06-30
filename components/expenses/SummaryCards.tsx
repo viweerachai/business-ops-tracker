@@ -107,7 +107,7 @@ export function SummaryCards({
   ];
 
   return (
-    <section className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+    <section className="grid grid-cols-1 gap-2.5">
       {cards.map((card) => {
         const Icon = card.icon;
         return (
@@ -115,7 +115,25 @@ export function SummaryCards({
             key={card.label}
             className={`relative overflow-hidden rounded-xl border border-slate-200 border-l-4 bg-white shadow-sm ${card.accent}`}
           >
-            <div className="p-4 sm:p-5">
+            {/* Always horizontal compact on mobile, vertical on lg+ */}
+            <div className="flex items-center gap-3 p-3 lg:hidden">
+              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${card.iconBg}`}>
+                <Icon className={`h-4 w-4 ${card.iconColor}`} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[12px] font-medium text-slate-500">{card.label}</p>
+                <p className="mt-0.5 truncate text-[18px] font-bold leading-tight tracking-tight text-slate-900">
+                  {card.value}
+                </p>
+              </div>
+              {card.trendLabel ? (
+                <div className="shrink-0">
+                  <TrendBadge dir={card.trend} label={card.trendLabel} />
+                </div>
+              ) : null}
+            </div>
+            {/* Desktop vertical card */}
+            <div className="hidden p-5 lg:block">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] font-semibold text-slate-500">{card.label}</p>
@@ -125,7 +143,7 @@ export function SummaryCards({
                   <Icon className={`h-4 w-4 ${card.iconColor}`} />
                 </div>
               </div>
-              <p className="mt-3 text-[26px] font-bold leading-none tracking-tight text-slate-900 sm:text-[28px]">
+              <p className="mt-3 text-[28px] font-bold leading-none tracking-tight text-slate-900">
                 {card.value}
               </p>
               <div className="mt-3 flex items-center gap-2">

@@ -16,7 +16,7 @@ export function GoogleSignInButton({
   return (
     <Button
       type="button"
-      className={["h-11 rounded-xl bg-slate-950 px-4 text-sm font-bold text-white hover:bg-slate-800", className].join(" ")}
+      className={["h-11 rounded-xl bg-teal-600 px-4 text-sm font-semibold text-white hover:bg-teal-700", className].join(" ")}
       onClick={() => {
         onBeforeSignIn?.();
         signIn("google", { callbackUrl });
