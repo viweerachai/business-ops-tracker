@@ -49,16 +49,16 @@ export function ChatMessageList({
         ฉันจะช่วยอ่านและบันทึกต้นทุนให้
       </BotBubble>
 
-      <div className="-mx-1 flex max-w-full gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <Button size="lg" className="h-12 shrink-0 rounded-2xl bg-blue-600 px-5 shadow-sm hover:bg-blue-700" onClick={onCamera}>
-          <Camera className="h-5 w-5" />
+      <div className="grid grid-cols-2 gap-2">
+        <Button className="h-11 rounded-xl bg-teal-600 px-4 text-[14px] font-semibold text-white shadow-sm hover:bg-teal-700" onClick={onCamera}>
+          <Camera className="h-4.5 w-4.5" />
           ถ่ายรูปใบเสร็จ
         </Button>
-        <Button size="lg" variant="outline" className="h-12 shrink-0 rounded-2xl bg-white px-5 shadow-sm" onClick={onGallery}>
-          <ImagePlus className="h-5 w-5" />
+        <Button variant="outline" className="h-11 rounded-xl border-slate-200 bg-white px-4 text-[14px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50" onClick={onGallery}>
+          <ImagePlus className="h-4.5 w-4.5" />
           อัปโหลดรูป
         </Button>
-        <Button size="lg" variant="outline" className="h-12 shrink-0 rounded-2xl border-amber-200 bg-amber-50 px-5 text-amber-800 shadow-sm hover:bg-amber-100" onClick={onLoadMock}>
+        <Button variant="outline" className="col-span-2 h-10 rounded-xl border-amber-200 bg-amber-50 px-4 text-[13px] font-semibold text-amber-800 shadow-sm hover:bg-amber-100" onClick={onLoadMock}>
           ใช้ mock data
         </Button>
       </div>

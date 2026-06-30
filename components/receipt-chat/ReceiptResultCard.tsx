@@ -35,66 +35,82 @@ export function ReceiptResultCard({
   onToggleResale: (itemId: string, checked: boolean) => void;
 }) {
   return (
-    <Card className="min-w-0 max-w-full overflow-hidden rounded-3xl border-slate-200 bg-white shadow-[0_12px_34px_rgba(15,23,42,0.09)]">
-      <CardHeader className="gap-3 border-b border-emerald-100 bg-emerald-50 p-4">
-        <div className="flex items-start justify-between gap-3">
+    <Card className="min-w-0 max-w-full overflow-hidden rounded-2xl border-slate-200 bg-white shadow-md">
+      {/* Header */}
+      <CardHeader className="gap-2 border-b border-emerald-100 bg-emerald-50 px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-base font-black text-emerald-950">✅ อ่านใบเสร็จสำเร็จ</p>
-            <p className="mt-1 truncate text-sm font-semibold text-emerald-800">{receipt.storeName || "DOUTOR 西新井西口店"}</p>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+              <p className="text-[14px] font-bold text-emerald-950">อ่านใบเสร็จสำเร็จ</p>
+            </div>
+            <p className="mt-0.5 truncate text-[13px] font-semibold text-emerald-700">{receipt.storeName || "-"}</p>
           </div>
-          <Badge className="shrink-0 rounded-full border border-emerald-100 bg-white px-2.5 py-1 text-emerald-700">
+          <Badge className="shrink-0 rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
             {receipt.items.length} รายการ
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="grid min-w-0 gap-4 overflow-x-hidden p-4">
-        <div className="grid min-w-0 gap-2 text-sm">
-          <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-3 py-2.5">
-            <p className="text-xs font-bold text-slate-500">ร้าน</p>
-            <p className="min-w-0 truncate text-right font-black text-slate-950">{receipt.storeName || "DOUTOR 西新井西口店"}</p>
+
+      <CardContent className="grid min-w-0 gap-3 overflow-x-hidden p-4">
+        {/* Receipt info grid */}
+        <div className="grid min-w-0 gap-1.5 text-sm">
+          {/* Store row */}
+          <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2">
+            <p className="text-[11px] font-semibold text-slate-400">ร้าน</p>
+            <p className="min-w-0 truncate text-right text-[13px] font-bold text-slate-950">{receipt.storeName || "-"}</p>
           </div>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-2xl bg-slate-50 p-3">
-              <p className="text-xs font-bold text-slate-500">สกุลเงิน</p>
-              <p className="mt-1 truncate font-black text-slate-950">{receipt.originalCurrency}</p>
+          {/* Currency + Rate */}
+          <div className="grid grid-cols-3 gap-1.5">
+            <div className="rounded-lg bg-slate-50 px-2.5 py-2">
+              <p className="text-[10px] font-semibold text-slate-400">สกุลเงิน</p>
+              <p className="mt-1 truncate text-[13px] font-bold text-slate-950">{receipt.originalCurrency}</p>
             </div>
-            <div className="rounded-2xl bg-slate-50 p-3">
-              <p className="text-xs font-bold text-slate-500">สกุลหลัก</p>
-              <p className="mt-1 truncate font-black text-slate-950">{receipt.baseCurrency}</p>
+            <div className="rounded-lg bg-slate-50 px-2.5 py-2">
+              <p className="text-[10px] font-semibold text-slate-400">สกุลหลัก</p>
+              <p className="mt-1 truncate text-[13px] font-bold text-slate-950">{receipt.baseCurrency}</p>
             </div>
-            <div className="rounded-2xl bg-blue-50 p-3">
-              <p className="text-xs font-bold text-blue-700">เรท</p>
-              <p className="mt-1 truncate font-black text-blue-700">{receipt.exchangeRate > 0 ? receipt.exchangeRate.toFixed(4) : "-"}</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-2xl bg-slate-50 p-3">
-              <p className="text-xs font-bold text-slate-500">วันที่</p>
-              <p className="mt-1 truncate font-black text-slate-950">{receipt.purchaseDate || "2026/05/02"}</p>
-            </div>
-            <div className="min-w-0 rounded-2xl bg-blue-50 p-3">
-              <p className="text-xs font-bold text-blue-700">รวม</p>
-              <p className="mt-1 truncate text-lg font-black text-blue-700">{yen(receipt.total)}</p>
+            <div className="rounded-lg bg-teal-50 px-2.5 py-2">
+              <p className="text-[10px] font-semibold text-teal-600">เรท</p>
+              <p className="mt-1 truncate text-[13px] font-bold text-teal-700">{receipt.exchangeRate > 0 ? receipt.exchangeRate.toFixed(4) : "-"}</p>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
-            <div className="min-w-0 truncate rounded-2xl bg-slate-50 p-3">小計 <span className="font-bold text-slate-800">{yen(receipt.subtotal)}</span></div>
-            <div className="min-w-0 truncate rounded-2xl bg-slate-50 p-3">税 <span className="font-bold text-slate-800">{yen(receipt.tax)}</span></div>
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
-            <div className="min-w-0 truncate rounded-2xl bg-emerald-50 p-3">
-              {receipt.baseCurrency} มูลค่ารวม <span className="font-bold text-emerald-700">{money(receipt.total ? receipt.total * receipt.exchangeRate : null, receipt.baseCurrency)}</span>
+          {/* Date + Total */}
+          <div className="grid grid-cols-2 gap-1.5">
+            <div className="rounded-lg bg-slate-50 px-2.5 py-2">
+              <p className="text-[10px] font-semibold text-slate-400">วันที่</p>
+              <p className="mt-1 truncate text-[13px] font-bold text-slate-950">{receipt.purchaseDate || "-"}</p>
             </div>
-            <div className="min-w-0 truncate rounded-2xl bg-emerald-50 p-3">
-              {receipt.baseCurrency} ราคาเฉลี่ย <span className="font-bold text-emerald-700">{money(receipt.total ? receipt.total * receipt.exchangeRate : null, receipt.baseCurrency)}</span>
+            <div className="min-w-0 rounded-lg bg-teal-50 px-2.5 py-2">
+              <p className="text-[10px] font-semibold text-teal-600">ยอดรวม</p>
+              <p className="mt-1 truncate text-[16px] font-bold text-teal-700">{yen(receipt.total)}</p>
+            </div>
+          </div>
+          {/* Subtotal + Tax */}
+          <div className="grid grid-cols-2 gap-1.5 text-[11px] text-slate-500">
+            <div className="min-w-0 truncate rounded-lg bg-slate-50 px-2.5 py-2">
+              <span>小計 </span><span className="font-bold text-slate-700">{yen(receipt.subtotal)}</span>
+            </div>
+            <div className="min-w-0 truncate rounded-lg bg-slate-50 px-2.5 py-2">
+              <span>税 </span><span className="font-bold text-slate-700">{yen(receipt.tax)}</span>
+            </div>
+          </div>
+          {/* THB values */}
+          <div className="grid grid-cols-2 gap-1.5 text-[11px] text-slate-500">
+            <div className="min-w-0 truncate rounded-lg bg-emerald-50 px-2.5 py-2">
+              <span className="text-emerald-600">{receipt.baseCurrency} รวม </span>
+              <span className="font-bold text-emerald-700">{money(receipt.total ? receipt.total * receipt.exchangeRate : null, receipt.baseCurrency)}</span>
+            </div>
+            <div className="min-w-0 truncate rounded-lg bg-emerald-50 px-2.5 py-2">
+              <span className="text-emerald-600">{receipt.baseCurrency} เฉลี่ย </span>
+              <span className="font-bold text-emerald-700">{money(receipt.total ? receipt.total * receipt.exchangeRate : null, receipt.baseCurrency)}</span>
             </div>
           </div>
         </div>
 
-        <div className="grid min-w-0 max-w-full gap-2 overflow-x-hidden">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-black text-slate-950">รายการสินค้า ({receipt.items.length})</p>
-          </div>
+        {/* Items */}
+        <div className="grid min-w-0 max-w-full gap-1.5 overflow-x-hidden">
+          <p className="text-[13px] font-bold text-slate-950">รายการสินค้า ({receipt.items.length})</p>
           {receipt.items.map((item) => (
             <ReceiptItemCard
               key={item.id}
@@ -104,20 +120,24 @@ export function ReceiptResultCard({
           ))}
         </div>
 
+        {/* Action buttons */}
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" className="h-11 rounded-2xl bg-white" onClick={onViewOcr}>
+          <Button variant="outline" className="h-10 rounded-xl border-slate-200 bg-white text-[13px] font-semibold text-slate-700 hover:bg-slate-50" onClick={onViewOcr}>
             <FileText className="h-4 w-4" />
             <span className="truncate">ดู OCR</span>
           </Button>
-          <Button variant="outline" className="h-11 rounded-2xl bg-white" onClick={onEditAll}>
+          <Button variant="outline" className="h-10 rounded-xl border-slate-200 bg-white text-[13px] font-semibold text-slate-700 hover:bg-slate-50" onClick={onEditAll}>
             <Pencil className="h-4 w-4" />
             <span className="truncate">แก้ไขทั้งหมด</span>
           </Button>
-          <Button variant="outline" className="h-11 rounded-2xl bg-white" onClick={onAddItem}>
+          <Button variant="outline" className="h-10 rounded-xl border-slate-200 bg-white text-[13px] font-semibold text-slate-700 hover:bg-slate-50" onClick={onAddItem}>
             <ListPlus className="h-4 w-4" />
             <span className="truncate">เพิ่มรายการ</span>
           </Button>
-          <Button className="h-11 rounded-2xl bg-blue-600 text-white hover:bg-blue-700" onClick={onSave}>
+          <Button
+            className={saved ? "h-10 rounded-xl bg-emerald-600 text-[13px] font-semibold text-white hover:bg-emerald-700" : "h-10 rounded-xl bg-teal-600 text-[13px] font-semibold text-white hover:bg-teal-700"}
+            onClick={onSave}
+          >
             <Save className="h-4 w-4" />
             <span className="truncate">{saved ? "บันทึกแล้ว" : "บันทึก"}</span>
           </Button>

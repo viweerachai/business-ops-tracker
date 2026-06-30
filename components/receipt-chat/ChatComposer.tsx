@@ -24,7 +24,7 @@ export function ChatComposer({
           className="h-10 min-w-0 flex-1 rounded-full border-slate-200 bg-slate-50 px-3 text-sm shadow-inner sm:h-11 sm:px-4"
           placeholder="เช่น: เปลี่ยนร้านเป็น LAWSON"
         />
-        <Button size="icon" className="h-10 w-10 shrink-0 rounded-full bg-blue-600 text-white hover:bg-blue-700 sm:h-11 sm:w-11" title="Send" aria-label="Send">
+        <Button size="icon" className="h-10 w-10 shrink-0 rounded-full bg-teal-600 text-white hover:bg-teal-700 sm:h-11 sm:w-11" title="Send" aria-label="Send">
           <SendHorizontal className="h-5 w-5" />
         </Button>
       </div>

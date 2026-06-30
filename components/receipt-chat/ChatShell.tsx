@@ -516,7 +516,7 @@ export function ChatShell({ mockMode = false }: { mockMode?: boolean }) {
     <div className="relative mx-auto flex h-[100dvh] w-full max-w-full flex-col overflow-x-hidden bg-[#F7F8FA] shadow-2xl sm:max-w-[480px] sm:border-x sm:border-slate-200">
       <ChatHeader visionUsage={visionUsage} geminiUsage={geminiUsage} />
 
-      <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pb-24">
+      <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pb-28">
         <ChatMessageList
           phase={phase}
           imageUrl={imageDataUrl}
