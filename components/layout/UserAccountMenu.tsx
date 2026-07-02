@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   BadgeCheck,
@@ -11,12 +12,9 @@ import {
   UserRound,
   WalletCards
 } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { Badge } from "@/components/ui/badge";
-import { MOCK_USER } from "@/lib/mockData";
-
-// ---------------------------------------------------------------------------
-// Mock version — uses hardcoded demo user, no next-auth dependency
-// ---------------------------------------------------------------------------
+import { signOutEverywhere } from "@/lib/auth-client";
 
 function AvatarImage({ image, name }: { image?: string | null; name?: string | null }) {
   const fallback = (name || "G").trim().slice(0, 1).toUpperCase();
@@ -78,6 +76,11 @@ function MenuRow({
 
 export function UserAccountMenu() {
   const [open, setOpen] = useState(false);
+  const { data: session } = useSession();
+  const isLoggedIn = Boolean(session?.user);
+  const userName = session?.user?.name ?? "ยังไม่ได้เข้าสู่ระบบ";
+  const userEmail = session?.user?.email ?? "กรุณาเข้าสู่ระบบ Google";
+  const userImage = session?.user?.image ?? null;
 
   return (
     <div className="relative">
@@ -86,10 +89,10 @@ export function UserAccountMenu() {
         className="flex w-full items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-left transition-colors hover:bg-slate-100"
         onClick={() => setOpen((v) => !v)}
       >
-        <AvatarImage image={MOCK_USER.image} name={MOCK_USER.name} />
+        <AvatarImage image={userImage} name={userName} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-semibold text-slate-900">{MOCK_USER.name}</p>
-          <p className="truncate text-[11px] text-slate-400">{MOCK_USER.email}</p>
+          <p className="truncate text-[13px] font-semibold text-slate-900">{userName}</p>
+          <p className="truncate text-[11px] text-slate-400">{userEmail}</p>
         </div>
         <ChevronUp
           className={[
@@ -102,43 +105,70 @@ export function UserAccountMenu() {
       {open ? (
         <div className="absolute bottom-[calc(100%+10px)] left-0 right-0 z-40 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
           <div className="flex items-center gap-3 p-3.5">
-            <LargeAvatarImage image={MOCK_USER.image} name={MOCK_USER.name} />
+            <LargeAvatarImage image={userImage} name={userName} />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <p className="truncate text-base font-black text-slate-900">{MOCK_USER.name}</p>
-                <Badge className="rounded-md bg-teal-50 px-2 py-0.5 text-xs text-teal-700">Pro</Badge>
+                <p className="truncate text-base font-black text-slate-900">{userName}</p>
+                {isLoggedIn ? (
+                  <Badge className="rounded-md bg-teal-50 px-2 py-0.5 text-xs text-teal-700">Google</Badge>
+                ) : (
+                  <Badge className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">Guest</Badge>
+                )}
               </div>
-              <p className="truncate text-xs font-semibold text-slate-400">{MOCK_USER.email}</p>
+              <p className="truncate text-xs font-semibold text-slate-400">{userEmail}</p>
             </div>
           </div>
 
-          <div className="border-y border-slate-100 px-3.5 py-3 text-sm font-bold text-slate-500">
-            <div className="flex items-start gap-2 rounded-xl bg-emerald-50 p-3 text-emerald-800">
-              <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0" />
-              <div className="min-w-0">
-                <p className="text-sm">เข้าสู่ระบบแล้ว (Demo)</p>
-                <p className="mt-1 truncate text-xs font-semibold text-emerald-700">
-                  {MOCK_USER.email}
-                </p>
+          {isLoggedIn ? (
+            <>
+              <div className="border-y border-slate-100 px-3.5 py-3 text-sm font-bold text-slate-500">
+                <div className="flex items-start gap-2 rounded-xl bg-emerald-50 p-3 text-emerald-800">
+                  <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm">เข้าสู่ระบบแล้ว</p>
+                    <p className="mt-1 truncate text-xs font-semibold text-emerald-700">{userEmail}</p>
+                  </div>
+                </div>
               </div>
+
+              <div className="py-2">
+                <MenuRow icon={UserRound} label="โปรไฟล์" />
+                <MenuRow icon={FileSignature} label="ลายเซ็นรับรองใบเสร็จ" />
+                <MenuRow icon={ShieldCheck} label="การเข้าถึง Google" muted="เชื่อมต่อแล้ว" />
+                <MenuRow icon={Settings} label="ตั้งค่า Google Sheet / Drive" />
+                <MenuRow icon={WalletCards} label="แพ็กเกจสมาชิก" />
+              </div>
+
+              <div className="border-t border-slate-100 py-2">
+                <MenuRow
+                  icon={LogOut}
+                  label="ออกจากระบบ"
+                  onClick={() => {
+                    console.log("[user-menu] logout clicked");
+                    setOpen(false);
+                    void signOutEverywhere("/");
+                  }}
+                />
+              </div>
+            </>
+          ) : (
+            <div className="space-y-3 border-t border-slate-100 p-3.5">
+              <div className="flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-slate-700">
+                <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm">ยังไม่ได้เข้าสู่ระบบ</p>
+                  <p className="mt-1 truncate text-xs font-semibold text-slate-500">{userEmail}</p>
+                </div>
+              </div>
+              <Link
+                href="/settings/businesses"
+                className="flex h-10 w-full items-center justify-center rounded-xl bg-teal-600 px-4 text-sm font-semibold text-white hover:bg-teal-700"
+                onClick={() => setOpen(false)}
+              >
+                ไปหน้าตั้งค่า
+              </Link>
             </div>
-          </div>
-
-          <div className="py-2">
-            <MenuRow icon={UserRound} label="โปรไฟล์" />
-            <MenuRow icon={FileSignature} label="ลายเซ็นรับรองใบเสร็จ" />
-            <MenuRow icon={ShieldCheck} label="การเข้าถึง Google" muted="เชื่อมต่อแล้ว" />
-            <MenuRow icon={Settings} label="ตั้งค่า Google Sheet / Drive" />
-            <MenuRow icon={WalletCards} label="แพ็กเกจสมาชิก" />
-          </div>
-
-          <div className="border-t border-slate-100 py-2">
-            <MenuRow
-              icon={LogOut}
-              label="ออกจากระบบ"
-              onClick={() => setOpen(false)}
-            />
-          </div>
+          )}
         </div>
       ) : null}
     </div>

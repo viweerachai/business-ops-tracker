@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Check, ChevronDown, Plus, Settings } from "lucide-react";
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { CreateBusinessDialog } from "@/components/business/CreateBusinessDialog";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +24,6 @@ function BusinessAvatar({ name, avatarUrl }: { name: string; avatarUrl?: string 
 
 export function BusinessSwitcher() {
   const router = useRouter();
-  const { data: session } = useSession();
   const {
     businesses,
     activeBusiness,
@@ -36,7 +34,6 @@ export function BusinessSwitcher() {
   } = useBusinesses();
   const [open, setOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  const ownerEmail = session?.user?.email ?? "local";
 
   if (loading) {
     return <div className="h-[72px] animate-pulse rounded-2xl bg-slate-100" />;
@@ -65,7 +62,7 @@ export function BusinessSwitcher() {
         <CreateBusinessDialog
           open={createOpen}
           onClose={() => setCreateOpen(false)}
-          onCreate={(input) => createBusiness({ ownerEmail, ...input })}
+          onCreate={createBusiness}
         />
       </>
     );
@@ -134,7 +131,7 @@ export function BusinessSwitcher() {
       <CreateBusinessDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreate={(input) => createBusiness({ ownerEmail, ...input })}
+        onCreate={createBusiness}
       />
     </div>
   );

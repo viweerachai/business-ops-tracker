@@ -248,9 +248,7 @@ export function ExpensesLayout() {
       <CreateBusinessDialog
         open={createBusinessOpen}
         onClose={() => setCreateBusinessOpen(false)}
-        onCreate={(input) =>
-          createBusiness({ ownerEmail: "", ...input })
-        }
+        onCreate={createBusiness}
       />
       <MobileBottomNav />
     </main>

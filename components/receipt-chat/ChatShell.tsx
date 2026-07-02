@@ -169,6 +169,7 @@ export function ChatShell({ mockMode = false }: { mockMode?: boolean }) {
   const [qualityWarning, setQualityWarning] = useState<string | null>(null);
   const [visionUsage, setVisionUsage] = useState(() => getVisionUsage());
   const [geminiUsage, setGeminiUsage] = useState(() => getGeminiUsage());
+  const [refreshingExchangeRate, setRefreshingExchangeRate] = useState(false);
   const { user } = useFirebaseUser();
   const { activeBusinessId, isLoggedIn } = useBusinesses();
   const ocrLanguage: OcrLanguage = "jpn+eng";
@@ -392,6 +393,42 @@ export function ChatShell({ mockMode = false }: { mockMode?: boolean }) {
     };
   }
 
+  async function refreshReceiptExchangeRate() {
+    if (!receipt) return;
+
+    try {
+      console.log("[receipt-chat] refresh exchange rate clicked", {
+        originalCurrency: receipt.originalCurrency,
+        baseCurrency: receipt.baseCurrency,
+        purchaseDate: receipt.purchaseDate,
+        exchangeRate: receipt.exchangeRate
+      });
+      setRefreshingExchangeRate(true);
+      const resolved = await resolveExpenseFormExchangeRate(receiptToExpenseForm(receipt));
+      console.log("[receipt-chat] refresh exchange rate resolved", {
+        exchangeRate: resolved.exchangeRate,
+        exchangeRateSource: resolved.exchangeRateSource,
+        exchangeRateDate: resolved.exchangeRateDate
+      });
+      setReceipt((current) =>
+        current
+          ? {
+              ...current,
+              originalCurrency: resolved.originalCurrency,
+              baseCurrency: resolved.baseCurrency,
+              exchangeRate: resolved.exchangeRate
+            }
+          : current
+      );
+      console.log("[receipt-chat] receipt updated after refresh");
+    } catch (err) {
+      console.error("[receipt-chat] refresh exchange rate failed", err);
+      setError(err instanceof Error ? err.message : "ดึงอัตราแลกเปลี่ยนไม่สำเร็จ");
+    } finally {
+      setRefreshingExchangeRate(false);
+    }
+  }
+
   async function saveReceipt() {
     if (!receipt || !imageDataUrl) return;
 
@@ -564,6 +601,8 @@ export function ChatShell({ mockMode = false }: { mockMode?: boolean }) {
             onOpenChange={setEditOpen}
             receipt={receipt}
             onChange={setReceipt}
+            onRefreshExchangeRate={refreshReceiptExchangeRate}
+            refreshingExchangeRate={refreshingExchangeRate}
           />
         </>
       ) : null}

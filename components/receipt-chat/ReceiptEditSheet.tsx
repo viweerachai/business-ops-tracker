@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -44,12 +44,16 @@ export function ReceiptEditSheet({
   open,
   onOpenChange,
   receipt,
-  onChange
+  onChange,
+  onRefreshExchangeRate,
+  refreshingExchangeRate = false
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   receipt: ChatReceipt;
   onChange: (receipt: ChatReceipt) => void;
+  onRefreshExchangeRate?: () => void | Promise<void>;
+  refreshingExchangeRate?: boolean;
 }) {
   function updateReceipt(patch: Partial<ChatReceipt>) {
     onChange({ ...receipt, ...patch });
@@ -137,11 +141,31 @@ export function ReceiptEditSheet({
                 <div className="grid gap-2">
                   <Label>อัตราแลกเปลี่ยน</Label>
                   <Input
+                    type="number"
+                    step="any"
                     inputMode="decimal"
                     value={receipt.exchangeRate}
                     onChange={(event) => updateReceipt({ exchangeRate: event.target.value ? numberValue(event.target.value) : 0 })}
                   />
                 </div>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3">
+                <div className="min-w-0">
+                  <p className="text-[13px] font-bold text-slate-800">อัตราแลกเปลี่ยน</p>
+                  <p className="mt-0.5 text-[12px] leading-relaxed text-slate-500">
+                    ดึงเรทใหม่ตามวันที่ซื้อและสกุลเงินที่เลือก
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 rounded-xl border-blue-500/30 bg-blue-50 px-4 text-sm font-bold text-blue-700 hover:bg-blue-100"
+                  onClick={() => onRefreshExchangeRate?.()}
+                  disabled={!onRefreshExchangeRate || refreshingExchangeRate}
+                >
+                  {refreshingExchangeRate ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                  อัปเดตเรทตามวันที่ซื้อ
+                </Button>
               </div>
             </div>
 

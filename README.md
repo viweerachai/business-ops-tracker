@@ -75,6 +75,47 @@ Then open:
 http://127.0.0.1:3001/receipts/new
 ```
 
+## Share a Local Dev Server
+
+If you want a public URL for a local dev server, use ngrok instead of localtunnel:
+
+1. Start the app:
+
+```bash
+npm run dev:lan
+```
+
+2. In another terminal, open a tunnel:
+
+```bash
+npm run tunnel:ngrok
+```
+
+By default this tunnels `http://127.0.0.1:3000`. If you are using a different local port, pass it as an argument:
+
+```bash
+node scripts/ngrok-tunnel.mjs 3001
+```
+
+If `ngrok` is not installed, install it first from ngrok's official docs.
+
+### Switch between local and ngrok
+
+Use these helper commands to flip `NEXTAUTH_URL` inside `.env.local`:
+
+```bash
+npm run env:local
+npm run env:ngrok
+```
+
+If your ngrok URL changes, you can pass a custom URL:
+
+```bash
+node scripts/use-env-profile.mjs ngrok https://your-new-subdomain.ngrok-free.app
+```
+
+After switching, restart the dev server so Next.js reloads the env file.
+
 Google Vision and Gemini require `.env.local`; Tesseract fallback can run without cloud credentials.
 
 ## Google Vision Setup

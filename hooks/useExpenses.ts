@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { MOCK_EXPENSES } from "@/lib/mockData";
+import { useEffect, useMemo, useState } from "react";
 import type { Expense, ExpenseFiltersState } from "@/lib/expenseTypes";
-
-// ---------------------------------------------------------------------------
-// Mock version — bypasses Firebase/auth entirely for demo purposes
-// ---------------------------------------------------------------------------
+import {
+  deleteExpenseDoc,
+  getExpenseWithItemsDoc,
+  subscribeExpenses,
+  useFirebaseUser
+} from "@/lib/firebase/firestore";
 
 const defaultFilters: ExpenseFiltersState = {
   search: "",
@@ -27,27 +28,13 @@ function matchesFilters(expense: Expense, filters: ExpenseFiltersState) {
 
   if (filters.date) {
     const dateValue =
-      filters.dateMode === "purchaseDate"
-        ? expense.purchaseDate
-        : expense.uploadDate;
+      filters.dateMode === "purchaseDate" ? expense.purchaseDate : expense.uploadDate;
     if (dateValue !== filters.date) return false;
   }
 
-  if (
-    filters.documentType !== "ทั้งหมด" &&
-    expense.documentType !== filters.documentType
-  )
-    return false;
-  if (
-    filters.paymentStatus !== "ทั้งหมด" &&
-    expense.paymentStatus !== filters.paymentStatus
-  )
-    return false;
-  if (
-    filters.payerName !== "ทั้งหมด" &&
-    expense.payerName !== filters.payerName
-  )
-    return false;
+  if (filters.documentType !== "ทั้งหมด" && expense.documentType !== filters.documentType) return false;
+  if (filters.paymentStatus !== "ทั้งหมด" && expense.paymentStatus !== filters.paymentStatus) return false;
+  if (filters.payerName !== "ทั้งหมด" && expense.payerName !== filters.payerName) return false;
 
   return true;
 }
@@ -56,23 +43,57 @@ export function useExpenses(
   activeBusinessId?: string | null,
   initialFilters: ExpenseFiltersState = defaultFilters
 ) {
-  const [expenses, setExpenses] = useState<Expense[]>(() =>
-    activeBusinessId
-      ? MOCK_EXPENSES.filter((e) => e.businessId === activeBusinessId)
-      : MOCK_EXPENSES
-  );
+  const { user, loading: authLoading, error: authError } = useFirebaseUser();
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [filters, setFilters] = useState<ExpenseFiltersState>(initialFilters);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(authError);
+
+  useEffect(() => {
+    setError(authError);
+  }, [authError]);
+
+  useEffect(() => {
+    if (!user || !activeBusinessId) {
+      setExpenses([]);
+      setLoading(false);
+      return;
+    }
+
+    let unsubscribe: () => void = () => {};
+    let cancelled = false;
+
+    setLoading(true);
+    setError(null);
+
+    unsubscribe = subscribeExpenses(
+      user,
+      activeBusinessId,
+      (nextExpenses) => {
+        if (cancelled) return;
+        setExpenses(nextExpenses);
+        setLoading(false);
+      },
+      (nextError) => {
+        if (cancelled) return;
+        setError(nextError.message);
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [activeBusinessId, user]);
 
   const filteredExpenses = useMemo(
-    () => expenses.filter((e) => matchesFilters(e, filters)),
+    () => expenses.filter((expense) => matchesFilters(expense, filters)),
     [expenses, filters]
   );
 
   const payerOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(expenses.map((e) => e.payerName).filter(Boolean))
-      ).sort(),
+    () => Array.from(new Set(expenses.map((expense) => expense.payerName).filter(Boolean))).sort(),
     [expenses]
   );
 
@@ -82,23 +103,24 @@ export function useExpenses(
     filters,
     setFilters,
     payerOptions,
-    loading: false,
-    error: null,
-    listExpenses: () => Promise.resolve(filteredExpenses),
-    addExpense: async (expense: Expense) => {
-      setExpenses((prev) => [expense, ...prev]);
+    loading: authLoading || loading,
+    error,
+    listExpenses: () => Promise.resolve(expenses),
+    addExpense: async () => {
+      throw new Error("เพิ่มรายจ่ายต้องใช้ flow การบันทึกจากหน้า new/review");
     },
-    updateExpense: async (id: string, patch: Partial<Expense>) => {
-      setExpenses((prev) =>
-        prev.map((e) =>
-          e.id === id ? { ...e, ...patch, updatedAt: new Date().toISOString() } : e
-        )
-      );
+    updateExpense: async () => {
+      throw new Error("อัปเดตรายจ่ายให้ใช้หน้ารายละเอียด");
     },
     deleteExpense: async (expenseId: string) => {
-      setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
+      if (!user || !activeBusinessId) {
+        throw new Error("ยังไม่ได้เข้าสู่ระบบ");
+      }
+      await deleteExpenseDoc(user, activeBusinessId, expenseId);
     },
-    getExpenseById: async (id: string) =>
-      MOCK_EXPENSES.find((e) => e.id === id) ?? null
+    getExpenseById: async (id: string) => {
+      if (!user || !activeBusinessId) return null;
+      return getExpenseWithItemsDoc(user, activeBusinessId, id);
+    }
   };
 }

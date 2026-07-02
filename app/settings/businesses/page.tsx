@@ -3,20 +3,24 @@
 import { useState } from "react";
 import { ArrowLeft, Building2, Pencil, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { CreateBusinessDialog } from "@/components/business/CreateBusinessDialog";
 import { EditBusinessDialog } from "@/components/business/EditBusinessDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { useBusinesses } from "@/hooks/useBusinesses";
-import { MOCK_USER } from "@/lib/mockData";
+import { signOutEverywhere } from "@/lib/auth-client";
 import type { Business } from "@/lib/expenseTypes";
 
 export default function BusinessSettingsPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const {
     businesses,
     activeBusinessId,
+    isLoggedIn: hasBusinessLogin,
     createBusiness,
     updateBusiness,
     deleteBusiness,
@@ -25,6 +29,7 @@ export default function BusinessSettingsPage() {
   } = useBusinesses();
   const [createOpen, setCreateOpen] = useState(false);
   const [editingBusiness, setEditingBusiness] = useState<Business | null>(null);
+  const isLoggedIn = Boolean(session?.user);
 
   async function handleDelete(business: Business) {
     if (businesses.length <= 1) {
@@ -59,11 +64,52 @@ export default function BusinessSettingsPage() {
           <Button
             className="h-11 rounded-xl bg-teal-600 text-white hover:bg-teal-700"
             onClick={() => setCreateOpen(true)}
-          >
+          disabled={!hasBusinessLogin}
+        >
             <Plus className="h-5 w-5" />
             สร้างธุรกิจใหม่
           </Button>
         </div>
+
+        {!isLoggedIn ? (
+          <Card className="mb-6 rounded-2xl border-teal-200 bg-teal-50 shadow-sm">
+            <CardContent className="p-5">
+              <div className="max-w-md">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-teal-700">ต้องเข้าสู่ระบบก่อน</p>
+                <h2 className="mt-1 text-xl font-black text-slate-950">เข้าสู่ระบบ Google เพื่อจัดการธุรกิจ</h2>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                  กดปุ่มด้านล่างเพื่อเชื่อมบัญชี แล้วกลับมาสร้างหรือแก้ไขธุรกิจได้จากหน้านี้
+                </p>
+                <div className="mt-4">
+                  <GoogleSignInButton callbackUrl="/settings/businesses" className="h-11 w-full justify-center rounded-xl font-semibold" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {isLoggedIn ? (
+          <Card className="mb-6 rounded-2xl border-slate-200 bg-white shadow-sm">
+            <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">บัญชี</p>
+                <h2 className="mt-1 text-lg font-black text-slate-950">จัดการการเข้าสู่ระบบ</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  {session?.user?.email || "บัญชี Google ที่เชื่อมต่ออยู่"}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                className="h-11 rounded-xl border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-50"
+                onClick={() => {
+                  void signOutEverywhere("/");
+                }}
+              >
+                ออกจากระบบ
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
           <CardHeader className="border-b border-slate-100 p-5">
@@ -135,9 +181,7 @@ export default function BusinessSettingsPage() {
       <CreateBusinessDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreate={(input) =>
-          createBusiness({ ownerEmail: MOCK_USER.email, ...input })
-        }
+        onCreate={createBusiness}
       />
       <EditBusinessDialog
         business={editingBusiness}

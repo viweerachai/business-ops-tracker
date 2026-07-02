@@ -2,17 +2,14 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { signIn } from "next-auth/react";
 import {
-  ArrowRight,
   Camera,
   ChevronRight,
   CircleDollarSign,
   Plus,
   ReceiptText,
   Search,
-  Store,
-  UserRound
+  Store
 } from "lucide-react";
 import { BusinessSwitcher } from "@/components/business/BusinessSwitcher";
 import { UserAccountMenu } from "@/components/layout/UserAccountMenu";
@@ -176,18 +173,17 @@ export default function MobilePage() {
         {/* Not logged in */}
         {!isLoggedIn ? (
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal-50">
-              <UserRound className="h-5.5 w-5.5 text-teal-600" />
-            </div>
-            <h2 className="mt-4 text-[17px] font-bold text-slate-950">เข้าสู่ระบบ Google</h2>
-            <p className="mt-1.5 text-sm leading-relaxed text-slate-500">ข้อมูลรายจ่ายหลักโหลดจาก Firestore หลังเข้าสู่ระบบ</p>
-            <Button
-              className="mt-5 h-11 w-full rounded-xl bg-teal-600 text-[14px] font-semibold text-white hover:bg-teal-700"
-              onClick={() => signIn("google", { callbackUrl: "/mobile" })}
+            <h2 className="text-[17px] font-bold text-slate-950">ยังไม่ได้เข้าสู่ระบบ</h2>
+            <p className="mt-1.5 text-sm leading-relaxed text-slate-500">
+              ไปที่หน้าตั้งค่าเพื่อเข้าสู่ระบบ Google แล้วกลับมาใช้งานรายจ่ายต่อได้
+            </p>
+            <Link
+              href="/settings/businesses"
+              className="mt-4 inline-flex items-center gap-1.5 text-[14px] font-semibold text-teal-700 hover:text-teal-800"
             >
-              เข้าสู่ระบบ
-              <ArrowRight className="h-4.5 w-4.5" />
-            </Button>
+              ไปหน้าตั้งค่า
+              <ChevronRight className="h-4.5 w-4.5" />
+            </Link>
           </section>
         ) : null}
 
@@ -227,7 +223,7 @@ export default function MobilePage() {
                 {/* Quick actions */}
                 <div className="grid grid-cols-2 gap-2.5">
                   <QuickAction href="/expenses/new" icon={Plus} label="เพิ่มรายจ่าย" primary />
-                  <QuickAction href="/receipt-chat?mock=1" icon={Camera} label="สแกน mock" />
+                  <QuickAction href="/receipt-chat" icon={Camera} label="สแกน" />
                 </div>
 
                 {/* Filters */}

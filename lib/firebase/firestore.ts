@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
-  GoogleAuthProvider,
   onAuthStateChanged,
-  signInWithCredential,
+  signInWithCustomToken,
   signOut as firebaseSignOut,
+  updateProfile,
   type User
 } from "firebase/auth";
 import {
@@ -34,6 +34,24 @@ import { createId } from "@/lib/utils";
 type AuthUserRef = {
   uid: string;
 };
+
+let firebaseAuthSyncInFlight: Promise<User | null> | null = null;
+let firebaseAuthSyncInFlightKey: string | null = null;
+let firebaseAuthSyncPaused = false;
+
+function tokenDebug(value: string | undefined) {
+  return value ? { present: true, length: value.length } : { present: false, length: 0 };
+}
+
+export function pauseFirebaseAuthSync(reason = "unknown") {
+  firebaseAuthSyncPaused = true;
+  console.log("[firebase-auth] sync paused", { reason });
+}
+
+export function resumeFirebaseAuthSync(reason = "unknown") {
+  firebaseAuthSyncPaused = false;
+  console.log("[firebase-auth] sync resumed", { reason });
+}
 
 function formatFirebaseAuthError(error: unknown) {
   const message = error instanceof Error ? error.message : "Firebase login failed";
@@ -76,14 +94,14 @@ function db() {
 }
 
 function defaultBusinessName(user: User) {
-  return user.displayName ? `ธุรกิจของ ${user.displayName}` : "ธุรกิจของฉัน";
+  return user.displayName ? `ธุรกิจของ ${user.displayName}` : user.email ? `ธุรกิจของ ${user.email}` : `ธุรกิจของ ${user.uid}`;
 }
 
 function businessPayload(user: User, businessId: string, input: { name: string; phone?: string }) {
   return {
     id: businessId,
     ownerUid: user.uid,
-    ownerEmail: user.email ?? "",
+    ownerEmail: user.email ?? user.uid ?? "",
     name: input.name.trim() || defaultBusinessName(user),
     phone: input.phone?.trim() || "",
     businessType: "shop" as const,
@@ -191,7 +209,7 @@ export function useFirebaseUser() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const lastFailedAccessTokenRef = useRef<string | null>(null);
+  const lastFailedSessionEmailRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!hasFirebaseConfig()) {
@@ -200,6 +218,10 @@ export function useFirebaseUser() {
     }
     const auth = getFirebaseAuth();
     const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+      console.log("[firebase-auth] auth state changed", {
+        uid: nextUser?.uid ?? null,
+        email: nextUser?.email ?? null
+      });
       setUser(nextUser);
       setLoading(false);
     });
@@ -210,6 +232,13 @@ export function useFirebaseUser() {
     let cancelled = false;
 
     async function syncFirebaseAuth() {
+      console.log("[firebase-auth] sync start", {
+        status,
+        sessionEmail: session?.user?.email ?? null,
+        accessToken: tokenDebug(session?.googleAccessToken),
+        idToken: tokenDebug(session?.googleIdToken),
+        googleTokenError: session?.googleTokenError ?? null
+      });
       if (status === "loading") return;
       if (!hasFirebaseConfig()) {
         setError("ยังไม่ได้ตั้งค่า Firebase env");
@@ -217,9 +246,24 @@ export function useFirebaseUser() {
         return;
       }
       const auth = getFirebaseAuth();
-      if (!session?.googleAccessToken || session.googleTokenError) {
+      if (firebaseAuthSyncPaused) {
+        console.log("[firebase-auth] sync paused, skipping firebase sign-in");
+        if (!cancelled) {
+          setUser(null);
+          setLoading(false);
+          setError(null);
+        }
+        if (status === "unauthenticated" || !session?.user) {
+          resumeFirebaseAuthSync("session-cleared");
+        }
+        return;
+      }
+      if (!session?.user) {
+        console.log("[firebase-auth] no session user, signing out firebase if needed");
         if (auth.currentUser) await firebaseSignOut(auth);
-        lastFailedAccessTokenRef.current = null;
+        firebaseAuthSyncInFlight = null;
+        firebaseAuthSyncInFlightKey = null;
+        lastFailedSessionEmailRef.current = null;
         if (!cancelled) {
           setUser(null);
           setLoading(false);
@@ -228,27 +272,118 @@ export function useFirebaseUser() {
         return;
       }
 
+      const sessionEmail = session.user.email?.trim();
+      if (!sessionEmail) {
+        console.warn("[firebase-auth] missing session email, skipping firebase sign-in");
+        if (auth.currentUser) await firebaseSignOut(auth);
+        firebaseAuthSyncInFlight = null;
+        firebaseAuthSyncInFlightKey = null;
+        if (!cancelled) {
+          setUser(null);
+          setError("ไม่พบอีเมลใน Google session");
+          setLoading(false);
+        }
+        return;
+      }
+
       try {
-        if (lastFailedAccessTokenRef.current === session.googleAccessToken) {
+        if (
+          auth.currentUser &&
+          auth.currentUser.uid === sessionEmail
+        ) {
+          console.log("[firebase-auth] firebase user already signed in, skipping sign-in");
+          lastFailedSessionEmailRef.current = null;
+          if (!cancelled) {
+            setUser(auth.currentUser);
+            setError(null);
+            setLoading(false);
+          }
+          return;
+        }
+
+        if (lastFailedSessionEmailRef.current === sessionEmail) {
+          console.log("[firebase-auth] skip retry for previously failed session email");
           if (!cancelled) {
             setLoading(false);
           }
           return;
         }
+
+        if (
+          firebaseAuthSyncInFlight &&
+          firebaseAuthSyncInFlightKey === sessionEmail
+        ) {
+          console.log("[firebase-auth] awaiting existing firebase sign-in");
+          const existingUser = await firebaseAuthSyncInFlight;
+          if (!cancelled) {
+            setUser(existingUser);
+            setError(null);
+            setLoading(false);
+          }
+          return;
+        }
+
+        console.log("[firebase-auth] requesting firebase custom token", {
+          sessionEmail,
+          accessToken: tokenDebug(session.googleAccessToken),
+          idToken: tokenDebug(session.googleIdToken)
+        });
         setLoading(true);
-        const credential = GoogleAuthProvider.credential(null, session.googleAccessToken);
-        const result = await signInWithCredential(auth, credential);
-        lastFailedAccessTokenRef.current = null;
+        const signInPromise = (async () => {
+          const tokenResponse = await fetch("/api/firebase-custom-token", {
+            method: "GET",
+            headers: {
+              "cache-control": "no-cache"
+            }
+          });
+          if (!tokenResponse.ok) {
+            throw new Error(`Firebase custom token request failed with ${tokenResponse.status}`);
+          }
+
+          const tokenPayload = (await tokenResponse.json()) as {
+            success?: boolean;
+            firebaseCustomToken?: string;
+            error?: string;
+          };
+
+          if (!tokenPayload.success || !tokenPayload.firebaseCustomToken) {
+            throw new Error(tokenPayload.error || "Could not create Firebase custom token.");
+          }
+
+          const result = await signInWithCustomToken(auth, tokenPayload.firebaseCustomToken);
+          return result.user;
+        })();
+
+        firebaseAuthSyncInFlight = signInPromise;
+        firebaseAuthSyncInFlightKey = sessionEmail;
+        const firebaseUser = await signInPromise;
+        if (firebaseUser.displayName !== session.user.name || firebaseUser.photoURL !== session.user.image) {
+          await updateProfile(firebaseUser, {
+            displayName: session.user.name ?? firebaseUser.displayName ?? undefined,
+            photoURL: session.user.image ?? firebaseUser.photoURL ?? undefined
+          });
+        }
+        console.log("[firebase-auth] firebase sign-in success", {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email ?? null
+        });
+        lastFailedSessionEmailRef.current = null;
         if (!cancelled) {
-          setUser(result.user);
+          setUser(firebaseUser);
           setError(null);
           setLoading(false);
         }
       } catch (err) {
-        lastFailedAccessTokenRef.current = session.googleAccessToken;
+        console.error("[firebase-auth] firebase sign-in failed", err);
+        lastFailedSessionEmailRef.current = sessionEmail;
         if (!cancelled) {
           setError(formatFirebaseAuthError(err));
           setLoading(false);
+        }
+      } finally {
+        if (firebaseAuthSyncInFlightKey === sessionEmail) {
+          firebaseAuthSyncInFlight = null;
+          firebaseAuthSyncInFlightKey = null;
         }
       }
     }
@@ -257,13 +392,21 @@ export function useFirebaseUser() {
     return () => {
       cancelled = true;
     };
-  }, [session?.googleAccessToken, session?.googleTokenError, status]);
+  }, [
+    session?.googleAccessToken,
+    session?.googleIdToken,
+    session?.googleTokenError,
+    session?.user?.email,
+    session?.user?.name,
+    session?.user?.image,
+    status
+  ]);
 
   return {
     user,
     loading: loading || status === "loading",
     error,
-    hasSession: Boolean(session?.googleAccessToken && !session.googleTokenError)
+    hasSession: Boolean(session?.user)
   };
 }
 
@@ -272,7 +415,7 @@ export async function ensureUserRoot(user: User) {
     doc(db(), "users", user.uid),
     {
       id: user.uid,
-      email: user.email ?? "",
+      email: user.email ?? user.uid ?? "",
       name: user.displayName ?? "",
       image: user.photoURL ?? "",
       updatedAt: serverTimestamp(),
@@ -497,6 +640,18 @@ export async function getExpenseWithItemsDoc(user: AuthUserRef, businessId: stri
     items: itemsSnap.docs.map((itemDoc) => mapExpenseItemDoc(itemDoc.data() as FirestoreExpenseItem)),
     image: null
   };
+}
+
+export async function getExpenseWithItemsForUserDoc(user: AuthUserRef, expenseId: string) {
+  const businessesRef = collection(db(), "users", user.uid, "businesses");
+  const businessesSnap = await getDocs(businessesRef);
+
+  for (const businessDoc of businessesSnap.docs) {
+    const expense = await getExpenseWithItemsDoc(user, businessDoc.id, expenseId);
+    if (expense) return expense;
+  }
+
+  return null;
 }
 
 export async function deleteExpenseDoc(user: AuthUserRef, businessId: string, expenseId: string) {

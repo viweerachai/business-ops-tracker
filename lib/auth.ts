@@ -80,6 +80,7 @@ export const authOptions: AuthOptions = {
         return {
           ...token,
           accessToken: account.access_token,
+          idToken: account.id_token,
           accessTokenExpires: typeof account.expires_at === "number" ? account.expires_at * 1000 : Date.now() + 3600 * 1000,
           refreshToken: account.refresh_token ?? token.refreshToken
         };
@@ -94,6 +95,7 @@ export const authOptions: AuthOptions = {
     },
     async session({ session, token }) {
       session.googleAccessToken = typeof token.accessToken === "string" ? token.accessToken : undefined;
+      session.googleIdToken = typeof token.idToken === "string" ? token.idToken : undefined;
       session.googleTokenError = typeof token.error === "string" ? token.error : undefined;
       return session;
     }

@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Sarabun } from "next/font/google";
+import { getServerSession } from "next-auth";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { PwaRegister } from "@/components/pwa-register";
+import { authOptions } from "@/lib/auth";
 import "./globals.css";
 
 const sarabun = Sarabun({
@@ -33,15 +35,17 @@ export const viewport: Viewport = {
   themeColor: "#0d736b"
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getServerSession(authOptions);
+
   return (
     <html lang="th" className={`${sarabun.variable} bg-background`}>
       <body className="font-sans">
-        <AuthProvider>
+        <AuthProvider session={session}>
           <PwaRegister />
           {children}
         </AuthProvider>

@@ -174,15 +174,27 @@ export function ExpenseSummarySection({
   async function refreshExchangeRate() {
     if (!hasCurrencyConversion || refreshingRate) return;
     try {
+      console.log("[expense-summary] refresh exchange rate clicked", {
+        originalCurrency: form.originalCurrency,
+        baseCurrency: form.baseCurrency,
+        receiptDate: form.receiptDate,
+        exchangeRate: form.exchangeRate
+      });
       setRefreshingRate(true);
       const resolved = await resolveExpenseFormExchangeRate({
         ...form,
         receiptDate: form.receiptDate || new Date().toISOString().slice(0, 10)
       });
+      console.log("[expense-summary] refresh exchange rate resolved", {
+        exchangeRate: resolved.exchangeRate,
+        exchangeRateSource: resolved.exchangeRateSource,
+        exchangeRateDate: resolved.exchangeRateDate
+      });
       onChange({
         ...resolved,
         ...patchSummaryAmounts(resolved, items)
       });
+      console.log("[expense-summary] form updated after refresh");
     } finally {
       setRefreshingRate(false);
     }
@@ -249,6 +261,8 @@ export function ExpenseSummarySection({
                       <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-slate-50 p-4">
                         <span className="text-sm font-semibold text-slate-700">1 {form.originalCurrency} =</span>
                         <Input
+                          type="number"
+                          step="any"
                           inputMode="decimal"
                           value={String(form.exchangeRate)}
                           className="h-11 w-32 rounded-xl bg-white text-base font-medium"
@@ -269,10 +283,10 @@ export function ExpenseSummarySection({
                             variant="outline"
                             onClick={refreshExchangeRate}
                             disabled={refreshingRate}
-                            className="h-11 rounded-xl border-blue-500/30 bg-blue-50 px-4 text-sm font-bold text-blue-700 hover:bg-blue-100"
-                          >
+                          className="h-11 rounded-xl border-blue-500/30 bg-blue-50 px-4 text-sm font-bold text-blue-700 hover:bg-blue-100"
+                        >
                             {refreshingRate ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                            อัปเดตเรทล่าสุด
+                            อัปเดตเรทตามวันที่ซื้อ
                           </Button>
                         </div>
                         <AmountRow

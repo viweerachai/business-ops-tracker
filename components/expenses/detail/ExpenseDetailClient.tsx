@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, FileText, X } from "lucide-react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,6 +25,7 @@ import { useBusinesses } from "@/hooks/useBusinesses";
 import { resolveExpenseFormExchangeRate } from "@/lib/exchange-rate-client";
 import { canCallVision, getVisionUsage, incrementVisionUsage } from "@/lib/local/vision-usage";
 import {
+  getExpenseWithItemsForUserDoc,
   getExpenseWithItemsDoc,
   updateExpenseWithItemsDoc
 } from "@/lib/firebase/firestore";
@@ -288,8 +291,10 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
     activeBusiness,
     activeBusinessId,
     user,
+    isLoggedIn,
     loading: businessLoading
   } = useBusinesses();
+  const userId = user?.uid ?? null;
   const [expense, setExpense] = useState<ExpenseWithItems | null>(null);
   const [form, setForm] = useState<ExpenseFormState>(defaultExpenseForm);
   const [items, setItems] = useState<ExpenseItemState[]>([]);
@@ -310,13 +315,17 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
     async function loadExpense() {
       try {
         if (businessLoading) return;
-        if (!user || !activeBusinessId) {
+        if (!user) {
           setExpense(null);
+          setError("กรุณาเข้าสู่ระบบก่อนแก้ไขรายจ่าย");
           setLoading(false);
           return;
         }
         setLoading(true);
-        const nextExpense = await getExpenseWithItemsDoc(user, activeBusinessId, expenseId);
+        const nextExpense = activeBusinessId
+          ? (await getExpenseWithItemsDoc(user, activeBusinessId, expenseId)) ??
+            (await getExpenseWithItemsForUserDoc(user, expenseId))
+          : await getExpenseWithItemsForUserDoc(user, expenseId);
         if (cancelled) return;
         setExpense(nextExpense);
         if (nextExpense) {
@@ -327,7 +336,7 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
           setOcrText(nextExpense.ocrText ?? "");
           setMessage("โหลดข้อมูลแล้ว พร้อมแก้ไข");
         }
-        setError(null);
+        setError(nextExpense ? null : "ไม่พบรายจ่ายนี้ในธุรกิจของคุณ");
         setLoading(false);
       } catch (err) {
         if (cancelled) return;
@@ -340,7 +349,7 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [expenseId, activeBusinessId, businessLoading, user]);
+  }, [expenseId, activeBusinessId, businessLoading, userId]);
 
   async function handleUploadReplacement(file?: File | null) {
     const selectedFile = file ?? inputRef.current?.files?.[0];
@@ -460,7 +469,8 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
   }
 
   async function handleSave() {
-    if (!user || !activeBusinessId) {
+    const targetBusinessId = expense?.businessId ?? activeBusinessId;
+    if (!user || !targetBusinessId) {
       setError("กรุณาเข้าสู่ระบบและเลือกธุรกิจก่อนบันทึก");
       return;
     }
@@ -489,7 +499,7 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
       setMessage("กำลังอัปเดตรายจ่ายใน Firestore...");
       await updateExpenseWithItemsDoc({
         user,
-        businessId: activeBusinessId,
+        businessId: targetBusinessId,
         expenseId,
         expense: {
           purchaseDate: resolvedForm.receiptDate || expense.purchaseDate,
@@ -597,7 +607,27 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
       </header>
 
       <section className="mx-auto grid w-full max-w-[1440px] flex-1 grid-cols-1 gap-5 px-4 py-5 pb-28 md:px-6 lg:grid-cols-[minmax(360px,0.9fr)_minmax(520px,1.1fr)] lg:gap-6">
-        {loading || businessLoading ? (
+        {!businessLoading && !isLoggedIn ? (
+          <Card className="rounded-2xl border-teal-200 bg-teal-50 lg:col-span-2">
+            <CardContent className="p-6">
+              <div className="max-w-md">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-teal-700">ต้องเข้าสู่ระบบก่อน</p>
+                <h2 className="mt-1 text-xl font-black text-slate-950">เข้าสู่ระบบ Google เพื่อแก้ไขรายจ่าย</h2>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                  รายจ่ายนี้ถูกผูกกับข้อมูลใน Firestore เลยต้องล็อกอินก่อน ถึงจะโหลดและบันทึกการแก้ไขได้
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <GoogleSignInButton callbackUrl={`/expenses/${expenseId}`} className="h-11 justify-center rounded-xl font-semibold" />
+                  <Button asChild variant="outline" className="h-11 rounded-xl border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-50">
+                    <Link href="/expenses">กลับหน้ารายจ่าย</Link>
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {isLoggedIn && (loading || businessLoading) ? (
           <>
             <Skeleton className="h-[720px] rounded-2xl" />
             <div className="grid content-start gap-5">
@@ -607,13 +637,13 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
           </>
         ) : null}
 
-        {!loading && error && !expense ? (
+        {!loading && !businessLoading && error && !expense ? (
           <Card className="rounded-2xl border-red-200 bg-red-50 lg:col-span-2">
             <CardContent className="p-6 text-red-800">{error}</CardContent>
           </Card>
         ) : null}
 
-        {!loading && !expense ? (
+        {!loading && !businessLoading && expense === null && isLoggedIn ? (
           <div className="flex flex-col items-center justify-center py-20 text-center lg:col-span-2">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100">
               <FileText className="h-8 w-8 text-slate-400" />

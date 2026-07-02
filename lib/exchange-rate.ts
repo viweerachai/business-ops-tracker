@@ -22,7 +22,17 @@ export type ResolvedExchangeRate = {
 
 function normalizeDate(date: string | null | undefined) {
   const trimmed = typeof date === "string" ? date.trim() : "";
+  const slashMatch = trimmed.match(/^(\d{4})\/(\d{2})\/(\d{2})$/);
+  if (slashMatch) {
+    return `${slashMatch[1]}-${slashMatch[2]}-${slashMatch[3]}`;
+  }
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+  const parsed = new Date(trimmed);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().slice(0, 10);
+  }
+
   return new Date().toISOString().slice(0, 10);
 }
 

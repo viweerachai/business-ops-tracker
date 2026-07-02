@@ -1,12 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
-import { MOCK_PRODUCT_SOURCE_ITEMS } from "@/lib/mockData";
+import { useEffect, useMemo, useState } from "react";
 import type { ExpenseCurrency, ProductCatalogEntry, ProductCatalogSourceItem } from "@/lib/expenseTypes";
-
-// ---------------------------------------------------------------------------
-// Mock version — bypasses Firebase/auth entirely for demo purposes
-// ---------------------------------------------------------------------------
+import { subscribeProductSourceItems, useFirebaseUser } from "@/lib/firebase/firestore";
 
 const supportedCurrencies: ExpenseCurrency[] = ["JPY", "THB"];
 
@@ -43,10 +39,7 @@ function appendCurrencyAmount(
   quantitiesByCurrency[c] = (quantitiesByCurrency[c] ?? 0) + quantity;
 }
 
-function addConvertibleAmounts(
-  entry: ProductCatalogEntry,
-  item: ProductCatalogSourceItem
-) {
+function addConvertibleAmounts(entry: ProductCatalogEntry, item: ProductCatalogSourceItem) {
   const originalCurrency = safeCurrency(item.originalCurrency);
   const baseCurrency = safeCurrency(item.baseCurrency, "THB");
   const totalPrice = safeNumber(item.totalPrice);
@@ -101,9 +94,7 @@ function aggregateProducts(items: ProductCatalogSourceItem[]) {
         quantitiesByCurrency: {}
       };
       addConvertibleAmounts(entry, item);
-      entry.availableCurrencies = Object.keys(
-        entry.totalsByCurrency
-      ) as ExpenseCurrency[];
+      entry.availableCurrencies = Object.keys(entry.totalsByCurrency) as ExpenseCurrency[];
       map.set(key, entry);
       continue;
     }
@@ -132,9 +123,7 @@ function aggregateProducts(items: ProductCatalogSourceItem[]) {
       existing.nonResaleCount += 1;
     }
     addConvertibleAmounts(existing, item);
-    existing.availableCurrencies = Object.keys(
-      existing.totalsByCurrency
-    ) as ExpenseCurrency[];
+    existing.availableCurrencies = Object.keys(existing.totalsByCurrency) as ExpenseCurrency[];
   }
 
   return Array.from(map.values()).sort((a, b) => {
@@ -149,25 +138,55 @@ function aggregateProducts(items: ProductCatalogSourceItem[]) {
 }
 
 export function useProductCatalog(activeBusinessId?: string | null) {
-  const sourceItems = useMemo(
-    () =>
-      activeBusinessId
-        ? MOCK_PRODUCT_SOURCE_ITEMS.filter(
-            (item) => item.businessId === activeBusinessId
-          )
-        : MOCK_PRODUCT_SOURCE_ITEMS,
-    [activeBusinessId]
-  );
+  const { user, loading: authLoading, error: authError } = useFirebaseUser();
+  const [sourceItems, setSourceItems] = useState<ProductCatalogSourceItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(authError);
 
-  const products = useMemo(
-    () => aggregateProducts(sourceItems),
-    [sourceItems]
-  );
+  useEffect(() => {
+    setError(authError);
+  }, [authError]);
+
+  useEffect(() => {
+    if (!user || !activeBusinessId) {
+      setSourceItems([]);
+      setLoading(false);
+      return;
+    }
+
+    let unsubscribe: () => void = () => {};
+    let cancelled = false;
+
+    setLoading(true);
+    setError(null);
+
+    unsubscribe = subscribeProductSourceItems(
+      user,
+      activeBusinessId,
+      (items) => {
+        if (cancelled) return;
+        setSourceItems(items);
+        setLoading(false);
+      },
+      (nextError) => {
+        if (cancelled) return;
+        setError(nextError.message);
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [activeBusinessId, user]);
+
+  const products = useMemo(() => aggregateProducts(sourceItems), [sourceItems]);
 
   return {
     products,
     sourceItems,
-    loading: false,
-    error: null
+    loading: authLoading || loading,
+    error
   };
 }
