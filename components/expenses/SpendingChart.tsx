@@ -10,13 +10,18 @@ import {
   CartesianGrid
 } from "recharts";
 import type { Expense } from "@/lib/expenseTypes";
+import {
+  expenseAmountForCurrency,
+  formatMoney,
+  type DisplayCurrency
+} from "@/components/expenses/currency";
 
 const thaiMonthsShort = [
   "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
   "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
 ];
 
-function buildChartData(expenses: Expense[]) {
+function buildChartData(expenses: Expense[], currency: DisplayCurrency) {
   // Last 6 months from current date
   const now = new Date();
   const months: { key: string; label: string; total: number }[] = [];
@@ -30,26 +35,36 @@ function buildChartData(expenses: Expense[]) {
   for (const expense of expenses) {
     const monthKey = expense.purchaseDate?.slice(0, 7);
     const slot = months.find((m) => m.key === monthKey);
-    if (slot) slot.total += expense.total;
+    if (slot) slot.total += expenseAmountForCurrency(expense, currency);
   }
 
   return months;
 }
 
-function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
+function CustomTooltip({
+  active,
+  payload,
+  label,
+  currency
+}: {
+  active?: boolean;
+  payload?: { value: number }[];
+  label?: string;
+  currency: DisplayCurrency;
+}) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-lg">
       <p className="text-[12px] font-semibold text-slate-500">{label}</p>
       <p className="mt-0.5 text-[15px] font-bold text-slate-900">
-        ฿{(payload[0].value ?? 0).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+        {formatMoney(payload[0].value ?? 0, currency)}
       </p>
     </div>
   );
 }
 
-export function SpendingChart({ expenses }: { expenses: Expense[] }) {
-  const data = buildChartData(expenses);
+export function SpendingChart({ expenses, currency }: { expenses: Expense[]; currency: DisplayCurrency }) {
+  const data = buildChartData(expenses, currency);
   const maxVal = Math.max(...data.map((d) => d.total), 1);
   const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
 
@@ -61,7 +76,7 @@ export function SpendingChart({ expenses }: { expenses: Expense[] }) {
           <p className="mt-0.5 text-[12px] text-slate-400">6 เดือนล่าสุด</p>
         </div>
         <span className="rounded-full bg-teal-50 px-2.5 py-1 text-[11px] font-semibold text-teal-700">
-          ฿{data.reduce((s, d) => s + d.total, 0).toLocaleString("en-US", { maximumFractionDigits: 0 })}
+          {formatMoney(data.reduce((s, d) => s + d.total, 0), currency)}
         </span>
       </div>
       <div className="px-4 pb-4 pt-3">
@@ -81,7 +96,7 @@ export function SpendingChart({ expenses }: { expenses: Expense[] }) {
               tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
               domain={[0, Math.ceil(maxVal * 1.2)]}
             />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: "#f8fafc" }} />
+            <Tooltip content={<CustomTooltip currency={currency} />} cursor={{ fill: "#f8fafc" }} />
             <Bar
               dataKey="total"
               radius={[6, 6, 0, 0]}

@@ -2,6 +2,11 @@
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import type { Expense } from "@/lib/expenseTypes";
+import {
+  expenseAmountForCurrency,
+  formatMoney,
+  type DisplayCurrency
+} from "@/components/expenses/currency";
 
 const COLORS = [
   "#0f766e", // teal-700
@@ -12,11 +17,11 @@ const COLORS = [
   "#059669", // emerald-600
 ];
 
-function buildCategoryData(expenses: Expense[]) {
+function buildCategoryData(expenses: Expense[], currency: DisplayCurrency) {
   const map = new Map<string, number>();
   for (const e of expenses) {
     const cat = e.categorySummary || "อื่นๆ";
-    map.set(cat, (map.get(cat) ?? 0) + e.total);
+    map.set(cat, (map.get(cat) ?? 0) + expenseAmountForCurrency(e, currency));
   }
   return Array.from(map.entries())
     .map(([name, value]) => ({ name, value }))
@@ -24,20 +29,28 @@ function buildCategoryData(expenses: Expense[]) {
     .slice(0, 6);
 }
 
-function CustomTooltip({ active, payload }: { active?: boolean; payload?: { name: string; value: number }[] }) {
+function CustomTooltip({
+  active,
+  payload,
+  currency
+}: {
+  active?: boolean;
+  payload?: { name: string; value: number }[];
+  currency: DisplayCurrency;
+}) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-lg">
       <p className="text-[12px] font-semibold text-slate-600">{payload[0].name}</p>
       <p className="mt-0.5 text-[14px] font-bold text-slate-900">
-        ฿{payload[0].value.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+        {formatMoney(payload[0].value, currency)}
       </p>
     </div>
   );
 }
 
-export function CategoryBreakdown({ expenses }: { expenses: Expense[] }) {
-  const data = buildCategoryData(expenses);
+export function CategoryBreakdown({ expenses, currency }: { expenses: Expense[]; currency: DisplayCurrency }) {
+  const data = buildCategoryData(expenses, currency);
   const total = data.reduce((s, d) => s + d.value, 0);
 
   if (data.length === 0) return null;
@@ -68,7 +81,7 @@ export function CategoryBreakdown({ expenses }: { expenses: Expense[] }) {
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip currency={currency} />} />
             </PieChart>
           </ResponsiveContainer>
         </div>

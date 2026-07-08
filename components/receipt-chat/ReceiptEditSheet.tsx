@@ -18,6 +18,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Textarea } from "@/components/ui/textarea";
 import { CURRENCY_CODES, type CurrencyCode } from "@/components/expenses/expenseSummaryUtils";
 import { CATEGORIES, type ReceiptCategory } from "@/lib/types/receipt";
+import { normalizePurchaseDateValue } from "@/lib/local/parser";
 import { createId } from "@/lib/utils";
 import type { ChatReceipt, ChatReceiptItem } from "@/components/receipt-chat/types";
 
@@ -35,7 +36,7 @@ function blankItem(): ChatReceiptItem {
     quantity: 1,
     unitPrice: 0,
     totalPrice: 0,
-    isResaleItem: true,
+    isResaleItem: false,
     memo: "要確認"
   };
 }
@@ -85,9 +86,13 @@ export function ReceiptEditSheet({
               </div>
               <div className="grid gap-2">
                 <Label>วันที่ซื้อ</Label>
-                <Input value={receipt.purchaseDate} onChange={(event) => updateReceipt({ purchaseDate: event.target.value })} />
+                <Input
+                  type="date"
+                  value={normalizePurchaseDateValue(receipt.purchaseDate) ?? ""}
+                  onChange={(event) => updateReceipt({ purchaseDate: event.target.value })}
+                />
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <div className="grid gap-2">
                   <Label>小計</Label>
                   <Input inputMode="numeric" value={receipt.subtotal ?? ""} onChange={(event) => updateReceipt({ subtotal: event.target.value ? numberValue(event.target.value) : null })} />
@@ -95,6 +100,10 @@ export function ReceiptEditSheet({
                 <div className="grid gap-2">
                   <Label>税</Label>
                   <Input inputMode="numeric" value={receipt.tax ?? ""} onChange={(event) => updateReceipt({ tax: event.target.value ? numberValue(event.target.value) : null })} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>送料</Label>
+                  <Input inputMode="numeric" value={receipt.shipping ?? ""} onChange={(event) => updateReceipt({ shipping: event.target.value ? numberValue(event.target.value) : null })} />
                 </div>
                 <div className="grid gap-2">
                   <Label>合計</Label>

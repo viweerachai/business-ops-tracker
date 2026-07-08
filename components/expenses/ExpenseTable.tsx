@@ -2,6 +2,7 @@
 
 import type { Expense } from "@/lib/expenseTypes";
 import { ExpenseMonthGroup } from "@/components/expenses/ExpenseMonthGroup";
+import type { DisplayCurrency } from "@/components/expenses/currency";
 
 export type ExpenseMonthGroupData = {
   key: string;
@@ -12,10 +13,12 @@ export type ExpenseMonthGroupData = {
 
 export function ExpenseTable({
   groups,
+  currency,
   onDelete,
   onOpen
 }: {
   groups: ExpenseMonthGroupData[];
+  currency: DisplayCurrency;
   onDelete: (expense: Expense) => void;
   onOpen: (expenseId: string) => void;
 }) {
@@ -27,6 +30,7 @@ export function ExpenseTable({
           month={group.label}
           total={group.total}
           expenses={group.expenses}
+          currency={currency}
           onDelete={onDelete}
           onOpen={onOpen}
         />

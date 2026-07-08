@@ -16,6 +16,9 @@ import { Textarea } from "@/components/ui/textarea";
 import type { ExpenseFormState } from "@/components/expenses/new/types";
 import { CATEGORIES, type ReceiptCategory } from "@/lib/types/receipt";
 
+// Set true when the advanced tax/accounting fields should return to the form.
+const SHOW_ADVANCED_EXPENSE_FIELDS = false;
+
 function Field({
   label,
   required,
@@ -82,22 +85,27 @@ export function ExpenseFormCard({
           <Input value={form.detail} onChange={(event) => update({ detail: event.target.value })} />
         </Field>
 
+        {SHOW_ADVANCED_EXPENSE_FIELDS ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="ประเภทเอกสาร">
+              <Select value={form.documentType} onValueChange={(value) => update({ documentType: value as ExpenseFormState["documentType"] })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="receipt">ใบเสร็จรับเงิน</SelectItem>
+                  <SelectItem value="tax_invoice">ใบกำกับภาษี</SelectItem>
+                  <SelectItem value="payment_voucher">ใบสำคัญจ่าย</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="เลขที่ใบกำกับภาษี">
+              <Input value={form.invoiceNumber} onChange={(event) => update({ invoiceNumber: event.target.value })} />
+            </Field>
+          </div>
+        ) : null}
+
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="ประเภทเอกสาร">
-            <Select value={form.documentType} onValueChange={(value) => update({ documentType: value as ExpenseFormState["documentType"] })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="receipt">ใบเสร็จรับเงิน</SelectItem>
-                <SelectItem value="tax_invoice">ใบกำกับภาษี</SelectItem>
-                <SelectItem value="payment_voucher">ใบสำคัญจ่าย</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label="เลขที่ใบกำกับภาษี">
-            <Input value={form.invoiceNumber} onChange={(event) => update({ invoiceNumber: event.target.value })} />
-          </Field>
           <Field label="หมวดหมู่">
             <Select value={form.category} onValueChange={(value) => update({ category: value as ReceiptCategory })}>
               <SelectTrigger>
@@ -124,47 +132,58 @@ export function ExpenseFormCard({
               </SelectContent>
             </Select>
           </Field>
-          <Field label="ผู้บันทึก/ผู้ขอเบิก" required>
-            <div className="relative">
-              <UserRound className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-slate-400" />
-              <Input className="pl-10" value={form.requester} onChange={(event) => update({ requester: event.target.value })} />
-            </div>
-          </Field>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label="ประเภทค่าใช้จ่าย">
-            <Input value={form.expenseType} onChange={(event) => update({ expenseType: event.target.value })} />
-          </Field>
-          <Field label="หมวดหมู่ย่อย">
-            <Input value={form.subCategory} onChange={(event) => update({ subCategory: event.target.value })} />
-          </Field>
-        </div>
+        {SHOW_ADVANCED_EXPENSE_FIELDS ? (
+          <>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="ผู้บันทึก/ผู้ขอเบิก" required>
+                <div className="relative">
+                  <UserRound className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-slate-400" />
+                  <Input className="pl-10" value={form.requester} onChange={(event) => update({ requester: event.target.value })} />
+                </div>
+              </Field>
+              <Field label="ประเภทค่าใช้จ่าย">
+                <Input value={form.expenseType} onChange={(event) => update({ expenseType: event.target.value })} />
+              </Field>
+              <Field label="หมวดหมู่ย่อย">
+                <Input value={form.subCategory} onChange={(event) => update({ subCategory: event.target.value })} />
+              </Field>
+            </div>
+          </>
+        ) : null}
 
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="ผู้ขาย/ผู้ให้บริการ">
             <Input value={form.vendorName} onChange={(event) => update({ vendorName: event.target.value })} />
           </Field>
-          <Field label="เลขประจำตัวผู้เสียภาษีผู้ขาย">
-            <Input value={form.vendorTaxId} onChange={(event) => update({ vendorTaxId: event.target.value })} />
-          </Field>
-          <Field label="สาขา">
-            <Input value={form.vendorBranchName} onChange={(event) => update({ vendorBranchName: event.target.value })} />
-          </Field>
-          <Field label="รหัสสาขา">
-            <Input value={form.vendorBranchCode} onChange={(event) => update({ vendorBranchCode: event.target.value })} />
-          </Field>
         </div>
 
-        <Field label="ที่อยู่ผู้ขาย/ผู้ให้บริการ">
-          <Input value={form.vendorAddress} onChange={(event) => update({ vendorAddress: event.target.value })} />
-        </Field>
+        {SHOW_ADVANCED_EXPENSE_FIELDS ? (
+          <>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="เลขประจำตัวผู้เสียภาษีผู้ขาย">
+                <Input value={form.vendorTaxId} onChange={(event) => update({ vendorTaxId: event.target.value })} />
+              </Field>
+              <Field label="สาขา">
+                <Input value={form.vendorBranchName} onChange={(event) => update({ vendorBranchName: event.target.value })} />
+              </Field>
+              <Field label="รหัสสาขา">
+                <Input value={form.vendorBranchCode} onChange={(event) => update({ vendorBranchCode: event.target.value })} />
+              </Field>
+            </div>
 
-        <label className="flex items-center gap-3 rounded-xl border bg-slate-50 p-3 text-sm font-bold text-slate-700">
-          <Checkbox checked={form.hasTaxInvoice} onCheckedChange={(checked) => update({ hasTaxInvoice: checked === true })} className="rounded-md border-slate-300" />
-          มีใบกำกับภาษี
-          <FileText className="ml-auto h-4 w-4 text-slate-400" />
-        </label>
+            <Field label="ที่อยู่ผู้ขาย/ผู้ให้บริการ">
+              <Input value={form.vendorAddress} onChange={(event) => update({ vendorAddress: event.target.value })} />
+            </Field>
+
+            <label className="flex items-center gap-3 rounded-xl border bg-slate-50 p-3 text-sm font-bold text-slate-700">
+              <Checkbox checked={form.hasTaxInvoice} onCheckedChange={(checked) => update({ hasTaxInvoice: checked === true })} className="rounded-md border-slate-300" />
+              มีใบกำกับภาษี
+              <FileText className="ml-auto h-4 w-4 text-slate-400" />
+            </label>
+          </>
+        ) : null}
 
         <Field label="หมายเหตุ">
           <Textarea className="min-h-24" placeholder="เพิ่มหมายเหตุสำหรับรายจ่ายนี้" value={form.note} onChange={(event) => update({ note: event.target.value })} />

@@ -1,6 +1,7 @@
 "use client";
 
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeftRight, ChevronDown, Pencil, Plus, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -31,7 +32,7 @@ function blankItem(): ExpenseItemState {
     quantity: 1,
     unitPrice: 0,
     totalPrice: 0,
-    isResaleItem: true,
+    isResaleItem: false,
     memo: "要確認"
   };
 }
@@ -82,24 +83,69 @@ function MoneyField({
   );
 }
 
+function convertAmount(value: number, fromCurrency: CurrencyCode, toCurrency: CurrencyCode, rate: number) {
+  if (fromCurrency === toCurrency) return value;
+  if (rate <= 0) return value;
+  if (fromCurrency === "JPY" && toCurrency === "THB") return value * rate;
+  if (fromCurrency === "THB" && toCurrency === "JPY") return value / rate;
+  return value;
+}
+
 export function ExpenseItemsCard({
   items,
   onChange,
   originalCurrency = "JPY",
   baseCurrency = "THB",
-  exchangeRate = 0
+  exchangeRate = 0,
+  mobileLayout = "paired"
 }: {
   items: ExpenseItemState[];
   onChange: (items: ExpenseItemState[]) => void;
   originalCurrency?: CurrencyCode;
   baseCurrency?: CurrencyCode;
   exchangeRate?: number;
+  mobileLayout?: "paired" | "switch";
 }) {
   const rate = normalizedExchangeRate({ originalCurrency, baseCurrency, exchangeRate });
   const showBaseCurrency = originalCurrency !== baseCurrency;
+  const [mobileDisplayCurrency, setMobileDisplayCurrency] = useState<CurrencyCode>(originalCurrency);
+  const [collapsedItemIds, setCollapsedItemIds] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    setMobileDisplayCurrency(originalCurrency);
+  }, [originalCurrency, baseCurrency, rate]);
 
   function updateItem(index: number, patch: Partial<ExpenseItemState>) {
     onChange(items.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)));
+  }
+
+  function removeItem(index: number) {
+    onChange(items.filter((_, itemIndex) => itemIndex !== index));
+  }
+
+  function addItem() {
+    const nextItem = blankItem();
+    onChange([...items, nextItem]);
+  }
+
+  function toggleItemOpen(itemId: string) {
+    setCollapsedItemIds((current) => {
+      const next = new Set(current);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  }
+
+  function updateMobileMoney(index: number, field: "unitPrice" | "totalPrice", value: number) {
+    const nextValue =
+      mobileDisplayCurrency === originalCurrency
+        ? value
+        : convertAmount(value, mobileDisplayCurrency, originalCurrency, rate);
+    updateItem(index, { [field]: nextValue } as Partial<ExpenseItemState>);
   }
 
   return (
@@ -120,11 +166,199 @@ export function ExpenseItemsCard({
           </div>
         ) : null}
 
-        {items.map((item, index) => (
+        {mobileLayout === "switch" ? (
+          <div className="grid gap-4 md:hidden">
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-[12px] font-semibold text-slate-500">สกุลเงินสำหรับแก้ไขบนมือถือ</p>
+                <p className="mt-1 text-[15px] font-black text-slate-900">
+                  {mobileDisplayCurrency}
+                  {showBaseCurrency ? (
+                    <span className="ml-2 text-[12px] font-semibold text-slate-500">
+                      / {mobileDisplayCurrency === originalCurrency ? baseCurrency : originalCurrency}
+                    </span>
+                  ) : null}
+                </p>
+              </div>
+              {showBaseCurrency ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 rounded-xl bg-white px-3 text-sm font-semibold text-slate-700"
+                  onClick={() =>
+                    setMobileDisplayCurrency((current) => (current === originalCurrency ? baseCurrency : originalCurrency))
+                  }
+                  disabled={rate <= 0}
+                >
+                  <ArrowLeftRight className="h-4 w-4" />
+                  สลับ
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="grid gap-4 md:hidden">
+          {items.map((item, index) => (
+            <div key={item.id} className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <Badge className="rounded-full bg-orange-50 px-3 py-1 text-orange-700">{item.category}</Badge>
+                  {collapsedItemIds.has(item.id) ? (
+                    <p className="mt-2 truncate text-sm font-semibold text-slate-800">
+                      {item.displayName || item.rawName || "ยังไม่มีชื่อสินค้า"}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-black text-slate-900">
+                    {formatAmount(
+                      mobileLayout === "switch"
+                        ? mobileDisplayCurrency === originalCurrency
+                          ? item.totalPrice
+                          : convertAmount(item.totalPrice, originalCurrency, mobileDisplayCurrency, rate)
+                        : item.totalPrice,
+                      mobileLayout === "switch" ? mobileDisplayCurrency : originalCurrency
+                    )}
+                  </p>
+                  {showBaseCurrency ? (
+                    <p className="mt-1 text-xs font-bold text-slate-500">
+                      {mobileLayout === "switch"
+                        ? mobileDisplayCurrency === originalCurrency
+                          ? `≈ ${formatAmount(convertAmount(item.totalPrice, originalCurrency, baseCurrency, rate), baseCurrency)}`
+                          : `≈ ${formatAmount(item.totalPrice, originalCurrency)}`
+                        : `≈ ${formatAmount(item.totalPrice * rate, baseCurrency)}`}
+                    </p>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-2 h-9 rounded-xl bg-white px-3 text-sm font-semibold text-slate-700"
+                    aria-expanded={!collapsedItemIds.has(item.id)}
+                    onClick={() => toggleItemOpen(item.id)}
+                  >
+                    <ChevronDown className={["h-4 w-4 transition-transform", collapsedItemIds.has(item.id) ? "" : "rotate-180"].join(" ")} />
+                    {collapsedItemIds.has(item.id) ? "ขยาย" : "ย่อ"}
+                  </Button>
+                </div>
+              </div>
+
+              {collapsedItemIds.has(item.id) ? null : mobileLayout === "switch" ? (
+                <>
+                  <div className="grid gap-3">
+                    <Input className="h-12 rounded-xl bg-white" placeholder="ชื่อจากใบเสร็จ" value={item.rawName} onChange={(event) => updateItem(index, { rawName: event.target.value })} />
+                    <Input className="h-12 rounded-xl bg-white" placeholder="ชื่ออังกฤษอ่านง่าย" value={item.displayName} onChange={(event) => updateItem(index, { displayName: event.target.value })} />
+                  </div>
+
+                  <div className="grid grid-cols-[1fr_0.85fr] gap-3">
+                    <label className="grid gap-2">
+                      <span className="text-sm font-bold text-slate-800">หมวดหมู่</span>
+                      <Select value={item.category} onValueChange={(value) => updateItem(index, { category: value as ReceiptCategory })}>
+                        <SelectTrigger className="h-12 rounded-xl bg-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CATEGORIES.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </label>
+                    <label className="grid gap-2">
+                      <span className="text-sm font-bold text-slate-800">จำนวน</span>
+                      <Input className="h-12 rounded-xl bg-white" inputMode="numeric" value={item.quantity} onChange={(event) => updateItem(index, { quantity: numberValue(event.target.value) })} />
+                    </label>
+                  </div>
+
+                  <div className="grid gap-3">
+                    <MoneyField
+                      label={`ราคาต่อหน่วย (${mobileDisplayCurrency})`}
+                      value={
+                        mobileDisplayCurrency === originalCurrency
+                          ? item.unitPrice
+                          : convertAmount(item.unitPrice, originalCurrency, mobileDisplayCurrency, rate)
+                      }
+                      currency={mobileDisplayCurrency}
+                      onChange={(value) => updateMobileMoney(index, "unitPrice", value)}
+                    />
+                    <MoneyField
+                      label={`ยอดรวม (${mobileDisplayCurrency})`}
+                      value={
+                        mobileDisplayCurrency === originalCurrency
+                          ? item.totalPrice
+                          : convertAmount(item.totalPrice, originalCurrency, mobileDisplayCurrency, rate)
+                      }
+                      currency={mobileDisplayCurrency}
+                      onChange={(value) => updateMobileMoney(index, "totalPrice", value)}
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="grid gap-3">
+                    <Input className="h-12 rounded-xl bg-white" placeholder="ชื่อจากใบเสร็จ" value={item.rawName} onChange={(event) => updateItem(index, { rawName: event.target.value })} />
+                    <Input className="h-12 rounded-xl bg-white" placeholder="ชื่ออังกฤษอ่านง่าย" value={item.displayName} onChange={(event) => updateItem(index, { displayName: event.target.value })} />
+                  </div>
+
+                  <div className="grid gap-3 grid-cols-[1fr_0.85fr]">
+                    <label className="grid gap-2">
+                      <span className="text-sm font-bold text-slate-800">หมวดหมู่</span>
+                      <Select value={item.category} onValueChange={(value) => updateItem(index, { category: value as ReceiptCategory })}>
+                        <SelectTrigger className="h-12 rounded-xl bg-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CATEGORIES.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </label>
+                    <label className="grid gap-2">
+                      <span className="text-sm font-bold text-slate-800">จำนวน</span>
+                      <Input className="h-12 rounded-xl bg-white" inputMode="numeric" value={item.quantity} onChange={(event) => updateItem(index, { quantity: numberValue(event.target.value) })} />
+                    </label>
+                  </div>
+                </>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl bg-white"
+                  onClick={() => updateItem(index, { isResaleItem: !item.isResaleItem })}
+                >
+                  <Pencil className="h-4 w-4" />
+                  {item.isResaleItem ? "สินค้ารีเซล" : "ไม่ใช่สินค้ารีเซล"}
+                </Button>
+                <Button type="button" variant="destructive" className="rounded-xl" onClick={() => removeItem(index)}>
+                  <Trash2 className="h-4 w-4" />
+                  ลบ
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden gap-4 md:grid">
+          {items.map((item, index) => (
           <div key={item.id} className="grid gap-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <Badge className="rounded-full bg-orange-50 px-3 py-1 text-orange-700">{item.category}</Badge>
-              <div className="text-right">
+              <div className="min-w-0">
+                <Badge className="rounded-full bg-orange-50 px-3 py-1 text-orange-700">{item.category}</Badge>
+                {collapsedItemIds.has(item.id) ? (
+                  <p className="mt-2 truncate text-sm font-semibold text-slate-800">
+                    {item.displayName || item.rawName || "ยังไม่มีชื่อสินค้า"}
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex items-start gap-3 text-right">
+                <div>
                 <p className="text-lg font-black text-slate-900">
                   {formatAmount(item.totalPrice, originalCurrency)}
                 </p>
@@ -133,8 +367,21 @@ export function ExpenseItemsCard({
                     ≈ {formatAmount(item.totalPrice * rate, baseCurrency)}
                   </p>
                 ) : null}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-9 rounded-xl bg-white px-3 text-sm font-semibold text-slate-700"
+                  aria-expanded={!collapsedItemIds.has(item.id)}
+                  onClick={() => toggleItemOpen(item.id)}
+                >
+                  <ChevronDown className={["h-4 w-4 transition-transform", collapsedItemIds.has(item.id) ? "" : "rotate-180"].join(" ")} />
+                  {collapsedItemIds.has(item.id) ? "ขยาย" : "ย่อ"}
+                </Button>
               </div>
             </div>
+            {collapsedItemIds.has(item.id) ? null : (
+            <>
             <div className="grid gap-3 md:grid-cols-2">
               <Input className="h-12 rounded-xl bg-white" placeholder="ชื่อจากใบเสร็จ" value={item.rawName} onChange={(event) => updateItem(index, { rawName: event.target.value })} />
               <Input className="h-12 rounded-xl bg-white" placeholder="ชื่ออังกฤษอ่านง่าย" value={item.displayName} onChange={(event) => updateItem(index, { displayName: event.target.value })} />
@@ -226,10 +473,13 @@ export function ExpenseItemsCard({
                 ลบ
               </Button>
             </div>
+            </>
+            )}
           </div>
-        ))}
+          ))}
+        </div>
 
-        <Button variant="outline" className="h-12 rounded-xl bg-white" onClick={() => onChange([...items, blankItem()])}>
+        <Button variant="outline" className="h-12 rounded-xl bg-white" onClick={addItem}>
           <Plus className="h-5 w-5" />
           เพิ่มรายการ
         </Button>

@@ -86,10 +86,13 @@ export function ReceiptResultCard({
               <p className="mt-1 truncate text-[16px] font-bold text-teal-700">{yen(receipt.total)}</p>
             </div>
           </div>
-          {/* Subtotal + Tax */}
-          <div className="grid grid-cols-2 gap-1.5 text-[11px] text-slate-500">
+          {/* Subtotal + Shipping + Tax */}
+          <div className="grid grid-cols-3 gap-1.5 text-[11px] text-slate-500">
             <div className="min-w-0 truncate rounded-lg bg-slate-50 px-2.5 py-2">
               <span>小計 </span><span className="font-bold text-slate-700">{yen(receipt.subtotal)}</span>
+            </div>
+            <div className="min-w-0 truncate rounded-lg bg-slate-50 px-2.5 py-2">
+              <span>送料 </span><span className="font-bold text-slate-700">{yen(receipt.shipping)}</span>
             </div>
             <div className="min-w-0 truncate rounded-lg bg-slate-50 px-2.5 py-2">
               <span>税 </span><span className="font-bold text-slate-700">{yen(receipt.tax)}</span>

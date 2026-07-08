@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Boxes, Package, Search, Tag } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { Image as ImageIcon, Package, Search, Tag, Upload } from "lucide-react";
 import { CreateBusinessDialog } from "@/components/business/CreateBusinessDialog";
 import { BusinessSwitcher } from "@/components/business/BusinessSwitcher";
 import { AppSidebar } from "@/components/expenses/AppSidebar";
@@ -9,6 +9,7 @@ import { MobileBottomNav } from "@/components/expenses/MobileBottomNav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBusinesses } from "@/hooks/useBusinesses";
 import { useProductCatalog } from "@/hooks/useProductCatalog";
+import { saveProductImageDoc } from "@/lib/firebase/firestore";
 import type { ExpenseCurrency, ProductCatalogEntry } from "@/lib/expenseTypes";
 
 const supportedCurrencies: ExpenseCurrency[] = ["JPY", "THB"];
@@ -60,6 +61,40 @@ function getDisplayCurrencies(product: ProductCatalogEntry) {
   );
 }
 
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error("อ่านไฟล์รูปไม่สำเร็จ"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("โหลดรูปไม่สำเร็จ"));
+    image.src = src;
+  });
+}
+
+async function resizeImageDataUrl(dataUrl: string, maxWidth = 640, quality = 0.78) {
+  const image = await loadImage(dataUrl);
+  const width = image.naturalWidth || image.width;
+  const height = image.naturalHeight || image.height;
+  if (!width || !height || width <= maxWidth) return dataUrl;
+
+  const scale = maxWidth / width;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(width * scale);
+  canvas.height = Math.round(height * scale);
+  const context = canvas.getContext("2d");
+  if (!context) return dataUrl;
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
 function LoadingCards() {
   return (
     <div className="mt-6 grid gap-3">
@@ -102,9 +137,20 @@ function SummaryCard({
   );
 }
 
-function ProductCard({ product }: { product: ProductCatalogEntry }) {
+function ProductCard({
+  product,
+  activeBusinessId,
+  user
+}: {
+  product: ProductCatalogEntry;
+  activeBusinessId: string | null;
+  user: { uid: string } | null;
+}) {
   const displayCurrencies = getDisplayCurrencies(product);
   const [currencyView, setCurrencyView] = useState<"JPY" | "THB">(displayCurrencies[0] ?? "JPY");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const hasActiveCurrency = displayCurrencies.includes(currencyView);
 
   useEffect(() => {
@@ -114,17 +160,39 @@ function ProductCard({ product }: { product: ProductCatalogEntry }) {
     }
   }, [currencyView, displayCurrencies]);
 
+  async function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !user || !activeBusinessId) return;
+
+    setUploading(true);
+    setUploadError(null);
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const resizedDataUrl = await resizeImageDataUrl(dataUrl);
+      await saveProductImageDoc(user, activeBusinessId, product.key, {
+        imageDataUrl: resizedDataUrl,
+        imageFileName: file.name
+      });
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "อัปโหลดรูปไม่สำเร็จ");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   return (
-    <div className="group rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+    <div className="group min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
       {/* Card header */}
-      <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 px-4 py-3">
+      <div className="grid min-w-0 gap-2 border-b border-slate-100 px-3 py-3 sm:flex sm:items-start sm:justify-between sm:px-4">
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-bold text-slate-950 sm:text-[17px]">{product.name}</p>
           {product.rawNames.length > 1 ? (
             <p className="mt-0.5 line-clamp-1 text-[12px] text-slate-400">{product.rawNames.slice(0, 3).join(" · ")}</p>
           ) : null}
         </div>
-        <div className="inline-flex shrink-0 rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+        <div className="inline-flex w-fit max-w-full shrink-0 rounded-lg border border-slate-200 bg-slate-50 p-0.5">
           {displayCurrencyOptions.map((currency) => {
             const disabled = !displayCurrencies.includes(currency);
             const active = currencyView === currency;
@@ -147,26 +215,64 @@ function ProductCard({ product }: { product: ProductCatalogEntry }) {
         </div>
       </div>
 
+      {/* Product image */}
+      <div className="flex min-w-0 items-center gap-3 border-b border-slate-100 px-3 py-3 sm:px-5">
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading || !user || !activeBusinessId}
+          className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-slate-400 transition hover:border-teal-300 hover:bg-teal-50"
+          aria-label={product.imageDataUrl ? `เปลี่ยนรูป ${product.name}` : `อัปโหลดรูป ${product.name}`}
+        >
+          {product.imageDataUrl ? (
+            <img src={product.imageDataUrl} alt={product.name} className="h-full w-full object-cover" loading="lazy" />
+          ) : (
+            <ImageIcon className="h-7 w-7" />
+          )}
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] font-semibold text-slate-900 sm:text-[14px]">
+            {product.imageDataUrl ? "รูปสินค้า" : "เพิ่มรูปสินค้า"}
+          </p>
+          <p className="mt-0.5 truncate text-[11px] text-slate-400">
+            {product.imageFileName ? product.imageFileName : "แตะเพื่ออัปโหลดรูปไว้ใน Firestore"}
+          </p>
+          {uploadError ? <p className="mt-0.5 text-[11px] font-medium text-rose-600">{uploadError}</p> : null}
+        </div>
+        <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading || !user || !activeBusinessId}
+          className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[12px] font-semibold text-slate-600 transition hover:border-teal-300 hover:text-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <Upload className="h-3.5 w-3.5" />
+            {uploading ? "บันทึก..." : product.imageDataUrl ? "เปลี่ยนรูป" : "อัปโหลดรูป"}
+          </span>
+        </button>
+      </div>
+
       {/* Card body */}
-      <div className="grid grid-cols-3 gap-2 p-3 sm:gap-3 sm:p-5">
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_minmax(0,1fr)] gap-1.5 p-2.5 sm:gap-3 sm:p-5">
         {/* Quantity */}
-        <div className="rounded-lg bg-slate-50 px-3 py-2.5 sm:px-4 sm:py-3">
+        <div className="min-w-0 rounded-lg bg-slate-50 px-2.5 py-2.5 sm:px-4 sm:py-3">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[11px]">จำนวน</p>
           <p className="mt-1 truncate text-[15px] font-bold text-slate-900 sm:mt-1.5 sm:text-xl">{product.totalQuantity.toLocaleString("th-TH")}</p>
           <p className="mt-0.5 text-[10px] text-slate-400 sm:text-[11px]">ชิ้น</p>
         </div>
         {/* Total value */}
-        <div className="rounded-lg bg-slate-50 px-3 py-2.5 sm:px-4 sm:py-3">
+        <div className="min-w-0 rounded-lg bg-slate-50 px-2.5 py-2.5 sm:px-4 sm:py-3">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[11px]">มูลค่า</p>
-          <p className="mt-1 truncate text-[15px] font-bold text-slate-900 sm:mt-1.5 sm:text-xl">
+          <p className="mt-1 truncate text-[13px] font-bold text-slate-900 sm:mt-1.5 sm:text-xl">
             {hasActiveCurrency ? formatDisplayMoney(product, currencyView) : "-"}
           </p>
           <p className="mt-0.5 text-[10px] text-slate-400 sm:text-[11px]">{currencyView}</p>
         </div>
         {/* Avg price */}
-        <div className="rounded-lg bg-slate-50 px-3 py-2.5 sm:px-4 sm:py-3">
+        <div className="min-w-0 rounded-lg bg-slate-50 px-2.5 py-2.5 sm:px-4 sm:py-3">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[11px]">เฉลี่ย</p>
-          <p className="mt-1 truncate text-[15px] font-bold text-slate-900 sm:mt-1.5 sm:text-xl">
+          <p className="mt-1 truncate text-[13px] font-bold text-slate-900 sm:mt-1.5 sm:text-xl">
             {hasActiveCurrency ? formatAverageMoney(product, currencyView) : "-"}
           </p>
           <p className="mt-0.5 text-[10px] text-slate-400 sm:text-[11px]">{hasActiveCurrency ? "ต่อชิ้น" : "ไม่มีข้อมูล"}</p>
@@ -174,12 +280,12 @@ function ProductCard({ product }: { product: ProductCatalogEntry }) {
       </div>
 
       {/* Card footer */}
-      <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-5 py-3">
-        <div className="flex items-center gap-1.5 text-[12px] font-semibold text-slate-500">
+      <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-slate-100 px-3 py-3 sm:px-5">
+        <div className="flex min-w-0 items-center gap-1.5 text-[12px] font-semibold text-slate-500">
           <Tag className="h-3.5 w-3.5 text-slate-400" />
-          {product.categories.join(", ") || "ยังไม่ระบุหมวดหมู่"}
+          <span className="truncate">{product.categories.join(", ") || "ยังไม่ระบุหมวดหมู่"}</span>
         </div>
-        <span className="ml-auto flex flex-wrap gap-1.5">
+        <span className="flex min-w-0 flex-wrap gap-1.5 sm:ml-auto">
           <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">ขายต่อ {product.resaleCount}x</span>
           <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500">ไม่ขายต่อ {product.nonResaleCount}x</span>
           <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700">{product.latestPurchaseDate}</span>
@@ -197,7 +303,7 @@ export function ProductCatalogLayout() {
     activeBusinessId,
     createBusiness
   } = useBusinesses();
-  const { products, sourceItems, loading, error } = useProductCatalog(activeBusinessId);
+  const { products, sourceItems, loading, error, user } = useProductCatalog(activeBusinessId);
   const hasBusiness = Boolean(activeBusinessId);
 
   const filteredProducts = useMemo(() => {
@@ -306,11 +412,11 @@ export function ProductCatalogLayout() {
             ) : null}
 
             {hasBusiness && !loading && filteredProducts.length > 0 ? (
-              <div className="mt-5 grid gap-3">
-                {filteredProducts.map((product) => (
-                  <ProductCard key={product.key} product={product} />
-                ))}
-              </div>
+                <div className="mt-5 grid gap-3">
+                  {filteredProducts.map((product) => (
+                    <ProductCard key={product.key} product={product} activeBusinessId={activeBusinessId} user={user} />
+                  ))}
+                </div>
             ) : null}
           </div>
         </section>

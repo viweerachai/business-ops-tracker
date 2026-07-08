@@ -12,7 +12,7 @@ const blockedLinePatterns = [
   /\b\d{1,2}:\d{2}\b/,
   /ポイント|point|POINT|残高|利用ポイント|獲得ポイント/i,
   /消費税|税率|税込|税抜|内税|対象計/,
-  /小計|合計|総合計|お預り|お釣り|現金|クレジット|カード支払|電子マネー|支払/,
+  /小計|送料|配送|配送料|shipping|delivery|合計|総合計|お預り|お釣り|現金|クレジット|カード支払|電子マネー|支払/i,
   /領収書|レシート|レジ|店No|伝票|取引|登録番号|インボイス/i
 ];
 
@@ -133,7 +133,9 @@ export function validateReceiptExtraction(
 
   let aiMemo = text(source.aiMemo);
   const itemSum = items.reduce((sum, item) => sum + item.totalPrice, 0);
-  if (typeof total === "number" && items.length > 0 && Math.abs(itemSum - total) > 2) {
+  const shipping = numberOrNull(source.shipping);
+  const expectedTotal = itemSum + (shipping ?? 0);
+  if (typeof total === "number" && items.length > 0 && Math.abs(expectedTotal - total) > 2) {
     aiMemo = normalizeMemo(aiMemo, "合計金額要確認");
   }
 
@@ -142,6 +144,7 @@ export function validateReceiptExtraction(
     purchaseDate: nullableText(source.purchaseDate),
     subtotal: numberOrNull(source.subtotal),
     tax: numberOrNull(source.tax),
+    shipping,
     total,
     items,
     aiMemo

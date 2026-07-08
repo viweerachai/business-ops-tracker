@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertTriangle, Loader2, RefreshCw, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,6 +33,7 @@ import {
   safeNumber,
   type CurrencyCode
 } from "@/components/expenses/expenseSummaryUtils";
+import { ArrowLeftRight } from "lucide-react";
 
 function CompactField({
   label,
@@ -143,22 +144,37 @@ function AmountRow({
   );
 }
 
+function convertAmount(value: number, fromCurrency: CurrencyCode, toCurrency: CurrencyCode, rate: number) {
+  if (fromCurrency === toCurrency) return value;
+  if (rate <= 0) return value;
+  if (fromCurrency === "JPY" && toCurrency === "THB") return value * rate;
+  if (fromCurrency === "THB" && toCurrency === "JPY") return value / rate;
+  return value;
+}
+
 export function ExpenseSummarySection({
   form,
   items,
-  onChange
+  onChange,
+  mobileLayout = "paired"
 }: {
   form: ExpenseFormState;
   items: ExpenseItemState[];
   onChange: (form: ExpenseFormState) => void;
+  mobileLayout?: "paired" | "switch";
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [refreshingRate, setRefreshingRate] = useState(false);
+  const [mobileDisplayCurrency, setMobileDisplayCurrency] = useState<CurrencyCode>(form.originalCurrency);
   const amounts = calculateExpenseSummaryAmounts(form, items);
   const itemsTotal = itemTotal(items);
   const hasCurrencyConversion = form.originalCurrency !== form.baseCurrency;
   const mismatch = form.manualAmountOverride && Math.abs(itemsTotal - amounts.totalOriginal) > 0.01;
   const moneyDisabled = !form.manualAmountOverride;
+
+  useEffect(() => {
+    setMobileDisplayCurrency(form.originalCurrency);
+  }, [form.originalCurrency, form.baseCurrency, form.exchangeRate]);
 
   function update(patch: Partial<ExpenseFormState>) {
     const nextForm = { ...form, ...patch };
@@ -169,6 +185,20 @@ export function ExpenseSummarySection({
       ...nextForm,
       ...patchSummaryAmounts(nextForm, items)
     });
+  }
+
+  function updateMobileAmount(key: (typeof amountRows)[number]["originalKey"], value: number) {
+    const nextValue =
+      mobileDisplayCurrency === form.originalCurrency
+        ? value
+        : convertAmount(value, mobileDisplayCurrency, form.originalCurrency, form.exchangeRate);
+    update({ [key]: nextValue } as Partial<ExpenseFormState>);
+  }
+
+  function displayAmount(valueOriginal: number) {
+    return mobileDisplayCurrency === form.originalCurrency
+      ? valueOriginal
+      : convertAmount(valueOriginal, form.originalCurrency, mobileDisplayCurrency, form.exchangeRate);
   }
 
   async function refreshExchangeRate() {
@@ -318,6 +348,40 @@ export function ExpenseSummarySection({
           </div>
         </div>
 
+        {mobileLayout === "switch" ? (
+          <div className="grid gap-4 md:hidden">
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-[12px] font-semibold text-slate-500">สกุลเงินสำหรับแก้ไขบนมือถือ</p>
+                <p className="mt-1 text-[15px] font-black text-slate-900">
+                  {mobileDisplayCurrency}
+                  {hasCurrencyConversion ? (
+                    <span className="ml-2 text-[12px] font-semibold text-slate-500">
+                      / {mobileDisplayCurrency === form.originalCurrency ? form.baseCurrency : form.originalCurrency}
+                    </span>
+                  ) : null}
+                </p>
+              </div>
+              {hasCurrencyConversion ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 rounded-xl bg-white px-3 text-sm font-semibold text-slate-700"
+                  onClick={() =>
+                    setMobileDisplayCurrency((current) =>
+                      current === form.originalCurrency ? form.baseCurrency : form.originalCurrency
+                    )
+                  }
+                  disabled={form.exchangeRate <= 0}
+                >
+                  <ArrowLeftRight className="h-4 w-4" />
+                  สลับ
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
         {mismatch ? (
           <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-700">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -325,31 +389,51 @@ export function ExpenseSummarySection({
           </div>
         ) : null}
 
-        <AmountRow
-          amounts={amounts}
-          currency={form.originalCurrency}
-          disabled={moneyDisabled}
-          valueKey="original"
-          onAmountChange={(key, value) => update({ [key]: value })}
-        />
+        {mobileLayout === "switch" ? (
+          <div className="grid gap-4 md:hidden">
+            {amountRows.map((row) => (
+              <AmountBox
+                key={`mobile-${row.key}`}
+                label={row.label}
+                value={displayAmount(amounts[row.originalKey])}
+                currency={mobileDisplayCurrency}
+                disabled={moneyDisabled}
+                readOnly={moneyDisabled}
+                onChange={(nextValue) => updateMobileAmount(row.originalKey, nextValue)}
+              />
+            ))}
+          </div>
+        ) : (
+          <AmountRow
+            amounts={amounts}
+            currency={form.originalCurrency}
+            disabled={moneyDisabled}
+            valueKey="original"
+            onAmountChange={(key, value) => update({ [key]: value })}
+          />
+        )}
 
         {hasCurrencyConversion ? (
           <>
-            <div className="border-t border-dashed border-[#E5E5E5]" />
+            {mobileLayout === "switch" ? null : (
+              <>
+                <div className="border-t border-dashed border-[#E5E5E5]" />
 
-            <div className="grid gap-4">
-              <h3 className="text-lg font-black tracking-normal text-slate-950">
-                ยอดเทียบเท่า {form.baseCurrency} (ตามอัตราปัจจุบัน)
-              </h3>
-              <AmountRow
-                amounts={amounts}
-                currency={form.baseCurrency}
-                disabled={false}
-                readOnly
-                valueKey="base"
-                onAmountChange={() => undefined}
-              />
-            </div>
+                <div className="grid gap-4">
+                  <h3 className="text-lg font-black tracking-normal text-slate-950">
+                    ยอดเทียบเท่า {form.baseCurrency} (ตามอัตราปัจจุบัน)
+                  </h3>
+                  <AmountRow
+                    amounts={amounts}
+                    currency={form.baseCurrency}
+                    disabled={false}
+                    readOnly
+                    valueKey="base"
+                    onAmountChange={() => undefined}
+                  />
+                </div>
+              </>
+            )}
           </>
         ) : null}
       </CardContent>

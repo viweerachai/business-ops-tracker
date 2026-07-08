@@ -20,10 +20,31 @@ export type ChatReceipt = {
   exchangeRate: number;
   subtotal: number | null;
   tax: number | null;
+  shipping: number | null;
   total: number | null;
   ocrText: string;
   aiMemo: string;
   items: ChatReceiptItem[];
+};
+
+export type ChatReceiptEntry = {
+  id: string;
+  sourceName: string;
+  imageDataUrl: string;
+  receipt: ChatReceipt | null;
+  phase: "vision" | "gemini" | "ready" | "error";
+  saved: boolean;
+  error: string | null;
+  qualityWarning: string | null;
+};
+
+export type ReceiptBatchProgress = {
+  active: boolean;
+  total: number;
+  done: number;
+  success: number;
+  failed: number;
+  currentFileName: string | null;
 };
 
 export const mockReceipt: ChatReceipt = {
@@ -34,13 +55,14 @@ export const mockReceipt: ChatReceipt = {
   exchangeRate: 0.23,
   subtotal: null,
   tax: null,
+  shipping: null,
   total: 440,
   ocrText:
     "DOUTOR\n西新井西口店\n2026/05/02\nM・アイスカフェラテ ¥440\n合計 ¥440",
   aiMemo: "",
   items: [
-    {
-      id: "mock-item-1",
+  {
+    id: "mock-item-1",
       rawName: "M・アイスカフェラテ",
       displayName: "M アイスカフェラテ",
       category: "Food",

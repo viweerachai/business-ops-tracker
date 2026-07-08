@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Upload } from "lucide-react";
+import { Bell, Repeat2, Upload } from "lucide-react";
 import { CreateBusinessDialog } from "@/components/business/CreateBusinessDialog";
 import { BusinessSwitcher } from "@/components/business/BusinessSwitcher";
 import { AppSidebar } from "@/components/expenses/AppSidebar";
@@ -20,6 +20,13 @@ import { useBusinesses } from "@/hooks/useBusinesses";
 import { downloadExpensesCsv } from "@/lib/exportCsv";
 import type { Expense } from "@/lib/expenseTypes";
 import { useExpenses } from "@/hooks/useExpenses";
+import {
+  cycleDisplayCurrencyMode,
+  displayCurrencyLabel,
+  expenseAmountForCurrency,
+  resolveDisplayCurrency,
+  type CurrencyDisplayMode
+} from "@/components/expenses/currency";
 
 const thaiMonths = [
   "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน",
@@ -37,7 +44,9 @@ function monthLabelFromKey(key: string) {
   return `${thaiMonths[month - 1]} ${year}`;
 }
 
-function groupExpensesByMonth(expenses: Expense[]): ExpenseMonthGroupData[] {
+const displayModeStorageKey = "expenses-display-currency-mode";
+
+function groupExpensesByMonth(expenses: Expense[], currency: "THB" | "JPY"): ExpenseMonthGroupData[] {
   const groups = new Map<string, Expense[]>();
   for (const expense of expenses) {
     const key = expense.purchaseDate?.slice(0, 7) || "ไม่ระบุเดือน";
@@ -49,7 +58,7 @@ function groupExpensesByMonth(expenses: Expense[]): ExpenseMonthGroupData[] {
       key,
       label: monthLabelFromKey(key),
       expenses: groupExpenses,
-      total: groupExpenses.reduce((sum, e) => sum + e.total, 0)
+      total: groupExpenses.reduce((sum, e) => sum + expenseAmountForCurrency(e, currency), 0)
     }));
 }
 
@@ -69,6 +78,7 @@ export function ExpensesLayout() {
   const [createBusinessOpen, setCreateBusinessOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
   const [showChart, setShowChart] = useState(true);
+  const [displayMode, setDisplayMode] = useState<CurrencyDisplayMode>("auto");
 
   const {
     activeBusiness,
@@ -85,19 +95,31 @@ export function ExpensesLayout() {
     deleteExpense
   } = useExpenses(activeBusinessId);
 
+  useEffect(() => {
+    const stored = window.localStorage.getItem(displayModeStorageKey);
+    if (stored === "auto" || stored === "THB" || stored === "JPY") {
+      setDisplayMode(stored);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(displayModeStorageKey, displayMode);
+  }, [displayMode]);
+
   const currentDate = new Date();
   const monthLabel = monthLabelFromDate(currentDate);
   const yearLabel = String(currentDate.getFullYear());
+  const displayCurrency = resolveDisplayCurrency(expenses, displayMode);
 
   const receiptCountThisMonth = expenses.filter((e) =>
     sameMonth(e.purchaseDate, currentDate)
   ).length;
   const totalThisMonth = expenses
     .filter((e) => sameMonth(e.purchaseDate, currentDate))
-    .reduce((sum, e) => sum + e.total, 0);
+    .reduce((sum, e) => sum + expenseAmountForCurrency(e, displayCurrency), 0);
   const totalThisYear = expenses
     .filter((e) => sameYear(e.purchaseDate, currentDate))
-    .reduce((sum, e) => sum + e.total, 0);
+    .reduce((sum, e) => sum + expenseAmountForCurrency(e, displayCurrency), 0);
 
   // pending/review count for notification badge
   const pendingCount = expenses.filter(
@@ -105,8 +127,8 @@ export function ExpensesLayout() {
   ).length;
 
   const groups = useMemo(
-    () => groupExpensesByMonth(filteredExpenses),
-    [filteredExpenses]
+    () => groupExpensesByMonth(filteredExpenses, displayCurrency),
+    [filteredExpenses, displayCurrency]
   );
 
   async function confirmDelete() {
@@ -168,14 +190,23 @@ export function ExpensesLayout() {
                 receiptCountThisMonth={receiptCountThisMonth}
                 totalThisMonth={totalThisMonth}
                 totalThisYear={totalThisYear}
+                currency={displayCurrency}
               />
             </div>
 
             {/* Charts row */}
-            <div className="mt-2 flex items-center justify-end">
+            <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
-                className="text-[12px] font-semibold text-slate-400 hover:text-teal-600 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-slate-600 transition-colors hover:border-teal-200 hover:text-teal-700"
+                onClick={() => setDisplayMode((current) => cycleDisplayCurrencyMode(current))}
+              >
+                <Repeat2 className="h-3.5 w-3.5" />
+                สกุล: {displayCurrencyLabel(displayMode, displayCurrency)}
+              </button>
+              <button
+                type="button"
+                className="text-[12px] font-semibold text-slate-400 transition-colors hover:text-teal-600"
                 onClick={() => setShowChart((v) => !v)}
               >
                 {showChart ? "ซ่อนกราฟ" : "แสดงกราฟ"}
@@ -184,8 +215,8 @@ export function ExpensesLayout() {
 
             {showChart ? (
               <div className="mt-2 grid gap-4 xl:grid-cols-[1fr_320px]">
-                <SpendingChart expenses={expenses} />
-                <CategoryBreakdown expenses={expenses} />
+                <SpendingChart expenses={expenses} currency={displayCurrency} />
+                <CategoryBreakdown expenses={expenses} currency={displayCurrency} />
               </div>
             ) : null}
 
@@ -231,6 +262,7 @@ export function ExpensesLayout() {
             {activeTab === "expenses" && filteredExpenses.length > 0 ? (
               <ExpenseTable
                 groups={groups}
+                currency={displayCurrency}
                 onDelete={(expense) => setExpenseToDelete(expense)}
                 onOpen={(expenseId) => router.push(`/expenses/${expenseId}`)}
               />

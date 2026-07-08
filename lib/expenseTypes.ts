@@ -45,10 +45,12 @@ export type Expense = {
   exchangeRateDate?: string | null;
   manualAmountOverride?: boolean;
   subtotalOriginal?: number;
+  shipping?: number | null;
   vatOriginal?: number;
   whtOriginal?: number;
   totalOriginal?: number;
   subtotalBase?: number;
+  shippingBase?: number | null;
   vatBase?: number;
   whtBase?: number;
   totalBase?: number;
@@ -99,6 +101,12 @@ export type ProductCatalogSourceItem = ExpenseItem & {
   expenseDetail?: string;
 };
 
+export type ProductCatalogImageMeta = {
+  imageDataUrl: string;
+  imageFileName: string;
+  imageUpdatedAt: string;
+};
+
 export type ProductCatalogEntry = {
   key: string;
   name: string;
@@ -114,6 +122,9 @@ export type ProductCatalogEntry = {
   availableCurrencies: ExpenseCurrency[];
   totalsByCurrency: Partial<Record<ExpenseCurrency, number>>;
   quantitiesByCurrency: Partial<Record<ExpenseCurrency, number>>;
+  imageDataUrl?: string;
+  imageFileName?: string;
+  imageUpdatedAt?: string;
 };
 
 export type ReceiptImage = {

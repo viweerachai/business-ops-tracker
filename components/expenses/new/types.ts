@@ -16,10 +16,12 @@ export type ExpenseFormState = {
   exchangeRateDate: string | null;
   manualAmountOverride: boolean;
   subtotalOriginal: number;
+  shipping: number;
   vatOriginal: number;
   whtOriginal: number;
   totalOriginal: number;
   subtotalBase: number;
+  shippingBase: number;
   vatBase: number;
   whtBase: number;
   totalBase: number;
@@ -69,10 +71,12 @@ export const defaultExpenseForm: ExpenseFormState = {
   exchangeRateDate: null,
   manualAmountOverride: true,
   subtotalOriginal: 0,
+  shipping: 0,
   vatOriginal: 0,
   whtOriginal: 0,
   totalOriginal: 0,
   subtotalBase: 0,
+  shippingBase: 0,
   vatBase: 0,
   whtBase: 0,
   totalBase: 0,
@@ -99,6 +103,6 @@ export const defaultExpenseItem: Omit<ExpenseItemState, "id"> = {
   quantity: 1,
   unitPrice: 0,
   totalPrice: 0,
-  isResaleItem: true,
+  isResaleItem: false,
   memo: "要確認"
 };

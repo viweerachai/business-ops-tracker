@@ -16,6 +16,11 @@ import { UserAccountMenu } from "@/components/layout/UserAccountMenu";
 import { MobileBottomNav } from "@/components/expenses/MobileBottomNav";
 import { ExpenseFilters } from "@/components/expenses/ExpenseFilters";
 import { SummaryCards } from "@/components/expenses/SummaryCards";
+import {
+  expenseAmountForCurrency,
+  formatMoney,
+  inferDisplayCurrency
+} from "@/components/expenses/currency";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBusinesses } from "@/hooks/useBusinesses";
@@ -102,6 +107,11 @@ function QuickAction({
 
 function RecentExpenseRow({ expense }: { expense: Expense }) {
   const Icon = expenseIcon(expense);
+  const currency = expense.originalCurrency === "THB" || expense.originalCurrency === "JPY"
+    ? expense.originalCurrency
+    : expense.currency === "THB" || expense.currency === "JPY"
+      ? expense.currency
+      : "JPY";
 
   return (
     <Link
@@ -118,7 +128,7 @@ function RecentExpenseRow({ expense }: { expense: Expense }) {
         </span>
       </span>
       <span className="flex items-center gap-0.5 text-[14px] font-semibold text-slate-900">
-        ฿{expense.total.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+        {formatMoney(expenseAmountForCurrency(expense, currency), currency)}
         <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
       </span>
     </Link>
@@ -137,14 +147,15 @@ export default function MobilePage() {
     useExpenses(activeBusinessId);
   const currentDate = useMemo(() => new Date(), []);
   const loading = businessLoading || expensesLoading;
+  const displayCurrency = inferDisplayCurrency(expenses);
   const monthExpenses = useMemo(
     () => expenses.filter((expense) => isThisMonth(expense.purchaseDate, currentDate)),
     [expenses, currentDate]
   );
-  const monthTotal = monthExpenses.reduce((sum, expense) => sum + expense.total, 0);
+  const monthTotal = monthExpenses.reduce((sum, expense) => sum + expenseAmountForCurrency(expense, displayCurrency), 0);
   const yearTotal = expenses
     .filter((expense) => expense.purchaseDate.startsWith(String(currentDate.getFullYear())))
-    .reduce((sum, expense) => sum + expense.total, 0);
+    .reduce((sum, expense) => sum + expenseAmountForCurrency(expense, displayCurrency), 0);
   const recentExpenses = filteredExpenses.slice(0, 5);
   const error = businessError || expensesError;
 
@@ -218,6 +229,7 @@ export default function MobilePage() {
                   receiptCountThisMonth={monthExpenses.length}
                   totalThisMonth={monthTotal}
                   totalThisYear={yearTotal}
+                  currency={displayCurrency}
                 />
 
                 {/* Quick actions */}

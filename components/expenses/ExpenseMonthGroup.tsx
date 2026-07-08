@@ -4,6 +4,11 @@ import { useState } from "react";
 import { ChevronDown, FileCheck2, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { Expense } from "@/lib/expenseTypes";
+import {
+  expenseAmountForCurrency,
+  formatMoney,
+  type DisplayCurrency
+} from "@/components/expenses/currency";
 
 function statusLabel(status: Expense["paymentStatus"]) {
   const labels: Record<Expense["paymentStatus"], string> = {
@@ -35,12 +40,14 @@ export function ExpenseMonthGroup({
   month,
   total,
   expenses,
+  currency,
   onDelete,
   onOpen
 }: {
   month: string;
   total: number;
   expenses: Expense[];
+  currency: DisplayCurrency;
   onDelete: (expense: Expense) => void;
   onOpen: (expenseId: string) => void;
 }) {
@@ -62,7 +69,7 @@ export function ExpenseMonthGroup({
         </div>
         <div className="flex items-center gap-3">
           <span className="text-[14px] font-bold text-slate-700">
-            ฿{total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {formatMoney(total, currency)}
           </span>
           <ChevronDown
             className={[
@@ -111,7 +118,7 @@ export function ExpenseMonthGroup({
                   <div className="flex items-center gap-2">
                     <div className="text-right">
                       <p className="text-[16px] font-bold text-slate-900">
-                        ฿{expense.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        {formatMoney(expenseAmountForCurrency(expense, currency), currency)}
                       </p>
                     </div>
                     <button
@@ -178,9 +185,9 @@ export function ExpenseMonthGroup({
                     </td>
                     <td className="px-5 py-3.5 text-right">
                       <p className="text-[14px] font-bold text-slate-900">
-                        ฿{expense.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        {formatMoney(expenseAmountForCurrency(expense, currency), currency)}
                       </p>
-                      <p className="text-[11px] text-slate-400">{expense.currency}</p>
+                      <p className="text-[11px] text-slate-400">{expense.originalCurrency ?? expense.currency}</p>
                     </td>
                     <td className="px-3 py-3.5">
                       <button

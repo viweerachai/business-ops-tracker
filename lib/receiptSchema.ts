@@ -9,7 +9,8 @@ export const receiptExtractionSchema = {
     },
     purchaseDate: {
       type: ["string", "null"],
-      description: "Purchase date in YYYY-MM-DD format, or null when not found."
+      description:
+        "Purchase date in YYYY-MM-DD format only when it is explicit and unambiguous, or null when the OCR only shows an ambiguous numeric date, month/day without a year, or a shipping/dispatch date."
     },
     subtotal: {
       type: ["number", "null"],
@@ -18,6 +19,10 @@ export const receiptExtractionSchema = {
     tax: {
       type: ["number", "null"],
       description: "Receipt tax amount in JPY, or null."
+    },
+    shipping: {
+      type: ["number", "null"],
+      description: "Receipt shipping/delivery fee in JPY, or null. Use labels like Shipping, 送料, 配送, delivery."
     },
     total: {
       type: ["number", "null"],
@@ -79,6 +84,7 @@ export const receiptExtractionSchema = {
     "purchaseDate",
     "subtotal",
     "tax",
+    "shipping",
     "total",
     "items",
     "aiMemo"
@@ -102,6 +108,7 @@ export type GeminiReceiptExtraction = {
   purchaseDate: string | null;
   subtotal: number | null;
   tax: number | null;
+  shipping: number | null;
   total: number | null;
   items: GeminiReceiptItem[];
   aiMemo: string;

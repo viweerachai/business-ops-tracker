@@ -23,6 +23,8 @@ import {
 } from "@/components/expenses/new/types";
 import { useBusinesses } from "@/hooks/useBusinesses";
 import { resolveExpenseFormExchangeRate } from "@/lib/exchange-rate-client";
+import { getExpenseById } from "@/lib/db";
+import { localDb } from "@/lib/local/db";
 import { canCallVision, getVisionUsage, incrementVisionUsage } from "@/lib/local/vision-usage";
 import {
   getExpenseWithItemsForUserDoc,
@@ -95,18 +97,43 @@ function receiptCategory(value: string | undefined): ReceiptCategory {
   return CATEGORIES.includes(value as ReceiptCategory) ? (value as ReceiptCategory) : "Other";
 }
 
-function driveImagePreviewUrl(expense: ExpenseWithItems | null) {
-  if (!expense) return null;
-  if (expense.imageDriveFileId) {
-    return `/api/google/drive-image/${encodeURIComponent(expense.imageDriveFileId)}`;
+function extractDriveFileId(url: string | null | undefined) {
+  if (!url) return null;
+
+  const patterns = [
+    /\/file\/d\/([a-zA-Z0-9_-]+)/,
+    /[?&]id=([a-zA-Z0-9_-]+)/,
+    /\/d\/([a-zA-Z0-9_-]+)/
+  ];
+
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match?.[1]) return match[1];
   }
-  return expense.imageDriveUrl || null;
+
+  return null;
+}
+
+function resolvedDriveFileId(expense: ExpenseWithItems | null) {
+  if (!expense) return null;
+  return expense.imageDriveFileId || extractDriveFileId(expense.imageDriveUrl);
+}
+
+function driveImagePreviewUrl(expense: ExpenseWithItems | null) {
+  const fileId = resolvedDriveFileId(expense);
+  if (!fileId) return null;
+  return `/api/google/drive-image/${encodeURIComponent(fileId)}`;
 }
 
 function driveImageDownloadUrl(expense: ExpenseWithItems | null) {
-  if (!expense?.imageDriveFileId) return null;
-  const fileName = `receipt-${expense.id}.jpg`;
-  return `/api/google/drive-image/${encodeURIComponent(expense.imageDriveFileId)}?download=1&name=${encodeURIComponent(fileName)}`;
+  const fileId = resolvedDriveFileId(expense);
+  if (!fileId) return null;
+  const fileName = `receipt-${expense?.id ?? "expense"}.jpg`;
+  return `/api/google/drive-image/${encodeURIComponent(fileId)}?download=1&name=${encodeURIComponent(fileName)}`;
+}
+
+function logImageDebug(label: string, payload: Record<string, unknown>) {
+  console.log(`[expense-detail:image] ${label}`, payload);
 }
 
 function formFromExpense(expense: ExpenseWithItems): ExpenseFormState {
@@ -114,6 +141,7 @@ function formFromExpense(expense: ExpenseWithItems): ExpenseFormState {
   const baseCurrency = isCurrencyCode(expense.baseCurrency) ? expense.baseCurrency : "THB";
   const exchangeRate = expense.exchangeRate ?? (originalCurrency === baseCurrency ? 1 : 0);
   const subtotalOriginal = expense.subtotalOriginal ?? expense.subtotal ?? 0;
+  const shippingOriginal = expense.shipping ?? 0;
   const vatOriginal = expense.vatOriginal ?? expense.tax ?? 0;
   const whtOriginal = expense.whtOriginal ?? expense.withholdingTax ?? 0;
   const totalOriginal = expense.totalOriginal ?? expense.total ?? 0;
@@ -135,10 +163,12 @@ function formFromExpense(expense: ExpenseWithItems): ExpenseFormState {
     exchangeRateDate: expense.exchangeRateDate ?? null,
     manualAmountOverride: expense.manualAmountOverride ?? true,
     subtotalOriginal,
+    shipping: shippingOriginal,
     vatOriginal,
     whtOriginal,
     totalOriginal,
     subtotalBase: expense.subtotalBase ?? subtotalOriginal * exchangeRate,
+    shippingBase: expense.shippingBase ?? shippingOriginal * exchangeRate,
     vatBase: expense.vatBase ?? vatOriginal * exchangeRate,
     whtBase: expense.whtBase ?? whtOriginal * exchangeRate,
     totalBase: expense.totalBase ?? totalOriginal * exchangeRate,
@@ -329,10 +359,42 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
         if (cancelled) return;
         setExpense(nextExpense);
         if (nextExpense) {
+          const driveFileId = resolvedDriveFileId(nextExpense);
+          const drivePreviewUrl = driveImagePreviewUrl(nextExpense);
+          const driveDownloadUrl = driveImageDownloadUrl(nextExpense);
+          const localReceipt = await localDb.receipts.get(expenseId);
+          const dashboardExpense = await getExpenseById(expenseId);
+          const dashboardImageDataUrl = dashboardExpense?.image?.imageDataUrl ?? null;
+
+          logImageDebug("loaded expense", {
+            expenseId,
+            fireStoreImageDriveFileId: nextExpense.imageDriveFileId || null,
+            fireStoreImageDriveUrl: nextExpense.imageDriveUrl || null,
+            resolvedDriveFileId: driveFileId,
+            drivePreviewUrl,
+            driveDownloadUrl,
+            localReceiptExists: Boolean(localReceipt),
+            localReceiptImageLength: localReceipt?.imageDataUrl?.length ?? 0,
+            dashboardExpenseExists: Boolean(dashboardExpense),
+            dashboardImageLength: dashboardImageDataUrl?.length ?? 0
+          });
+
           setForm(formFromExpense(nextExpense));
           setItems(itemsFromExpense(nextExpense));
-          setPreviewImageUrl(driveImagePreviewUrl(nextExpense));
-          setFileName(nextExpense.imageDriveFileId ? "Google Drive evidence" : null);
+          if (drivePreviewUrl) {
+            setPreviewImageUrl(drivePreviewUrl);
+            setFileName(driveFileId ? "Google Drive evidence" : null);
+          } else {
+            const fallbackImageDataUrl = localReceipt?.imageDataUrl || dashboardImageDataUrl || null;
+            logImageDebug("falling back to local image store", {
+              expenseId,
+              localReceiptImageLength: localReceipt?.imageDataUrl?.length ?? 0,
+              dashboardImageLength: dashboardImageDataUrl?.length ?? 0,
+              fallbackImageLength: fallbackImageDataUrl?.length ?? 0
+            });
+            setPreviewImageUrl(fallbackImageDataUrl);
+            setFileName(localReceipt ? "Local receipt evidence" : dashboardExpense?.image ? "Local dashboard evidence" : null);
+          }
           setOcrText(nextExpense.ocrText ?? "");
           setMessage("โหลดข้อมูลแล้ว พร้อมแก้ไข");
         }
@@ -488,6 +550,7 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
       setError(null);
       setSuccess(null);
       setMessage("กำลังดึงอัตราแลกเปลี่ยน...");
+      const shippingOriginal = expense.shipping ?? 0;
       const resolvedForm = await resolveExpenseFormExchangeRate({
         ...form,
         receiptDate: form.receiptDate || expense.purchaseDate
@@ -516,6 +579,7 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
           vendorAddress: resolvedForm.vendorAddress,
           detail: resolvedForm.detail,
           subtotal: amountFields.subtotalOriginal || null,
+          shipping: shippingOriginal,
           tax: amountFields.vatOriginal || null,
           withholdingTax: amountFields.whtOriginal || null,
           total: amountFields.totalOriginal || null,
@@ -531,6 +595,7 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
           whtOriginal: amountFields.whtOriginal,
           totalOriginal: amountFields.totalOriginal,
           subtotalBase: amountFields.subtotalBase,
+          shippingBase: shippingOriginal * amountFields.exchangeRate,
           vatBase: amountFields.vatBase,
           whtBase: amountFields.whtBase,
           totalBase: amountFields.totalBase,
@@ -676,6 +741,9 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
                 onLoadMock={() => undefined}
                 onRunVisionOcr={handleRunVisionOcr}
               />
+              <p className="px-1 text-[11px] text-slate-400">
+                debug: preview={previewImageUrl ? "set" : "null"} driveFileId={resolvedDriveFileId(expense) ?? "null"} localFallback={previewImageUrl?.startsWith("data:image/") ? "yes" : "no"}
+              </p>
             </div>
             <div className="grid content-start gap-6">
               {success ? (
@@ -698,6 +766,7 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
                   originalCurrency={form.originalCurrency}
                   baseCurrency={form.baseCurrency}
                   exchangeRate={form.exchangeRate}
+                  mobileLayout="switch"
                 />
               </section>
 
@@ -707,7 +776,7 @@ export function ExpenseDetailClient({ expenseId }: { expenseId: string }) {
                   title="ตรวจยอดรวม"
                   description="เช็กยอดชำระ ภาษี และอัตราแลกเปลี่ยนก่อนกดบันทึก"
                 />
-                <ExpenseSummarySection form={form} items={items} onChange={setForm} />
+                <ExpenseSummarySection form={form} items={items} onChange={setForm} mobileLayout="switch" />
               </section>
             </div>
           </>

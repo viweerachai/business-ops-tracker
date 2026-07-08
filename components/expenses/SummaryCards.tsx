@@ -1,4 +1,5 @@
 import { ArrowDownRight, ArrowUpRight, Calendar, Minus, Receipt, TrendingDown } from "lucide-react";
+import { formatMoney, type DisplayCurrency } from "@/components/expenses/currency";
 
 const cardConfigs = [
   {
@@ -54,6 +55,7 @@ export function SummaryCards({
   receiptCountThisMonth,
   totalThisMonth,
   totalThisYear,
+  currency,
   receiptCountPrevMonth = 3,
   totalPrevMonth = 18240,
 }: {
@@ -62,6 +64,7 @@ export function SummaryCards({
   receiptCountThisMonth: number;
   totalThisMonth: number;
   totalThisYear: number;
+  currency: DisplayCurrency;
   receiptCountPrevMonth?: number;
   totalPrevMonth?: number;
 }) {
@@ -89,8 +92,8 @@ export function SummaryCards({
     {
       label: "ค่าใช้จ่ายเดือนนี้",
       sublabel: monthLabel,
-      value: `฿${totalThisMonth.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
-      unit: "บาท",
+      value: formatMoney(totalThisMonth, currency),
+      unit: currency === "JPY" ? "เยน" : "บาท",
       trend: amtTrend,
       trendLabel: amtTrendLabel,
       ...cardConfigs[1]
@@ -98,8 +101,8 @@ export function SummaryCards({
     {
       label: "ค่าใช้จ่ายปีนี้",
       sublabel: yearLabel,
-      value: `฿${totalThisYear.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
-      unit: "บาท",
+      value: formatMoney(totalThisYear, currency),
+      unit: currency === "JPY" ? "เยน" : "บาท",
       trend: "flat" as TrendDir,
       trendLabel: "",
       ...cardConfigs[2]

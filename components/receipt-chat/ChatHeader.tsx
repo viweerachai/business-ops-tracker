@@ -9,10 +9,12 @@ import type { VisionUsage } from "@/lib/local/vision-usage";
 
 export function ChatHeader({
   visionUsage,
-  geminiUsage
+  geminiUsage,
+  onSettingsClick
 }: {
   visionUsage: VisionUsage;
   geminiUsage: GeminiUsage;
+  onSettingsClick: () => void;
 }) {
   const router = useRouter();
 
@@ -54,6 +56,7 @@ export function ChatHeader({
           className="h-9 w-9 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
           title="Settings"
           aria-label="Settings"
+          onClick={onSettingsClick}
         >
           <Settings className="h-4 w-4" />
         </Button>

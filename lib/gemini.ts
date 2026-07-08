@@ -1,5 +1,6 @@
 import { receiptExtractionSchema } from "@/lib/receiptSchema";
 import { parseGeminiJson, validateReceiptExtraction } from "@/lib/validateReceipt";
+import type { GeminiModelId } from "@/lib/gemini-models";
 import type { OcrLanguage } from "@/lib/types/receipt";
 
 type GeminiResponse = {
@@ -42,8 +43,13 @@ Rules:
 - Do not treat times as prices.
 - Do not treat point balances as item prices.
 - Do not treat tax lines as purchased items.
-- Do not treat subtotal/total/payment lines as purchased items.
-- Extract subtotal, tax, and total separately.
+- Do not treat subtotal/shipping/total/payment lines as purchased items.
+- Extract subtotal, tax, shipping, and total separately.
+- Treat labels such as Shipping, 送料, 配送, delivery, delivery fee, and shipping fee as shipping.
+- Do not include shipping as an item.
+- purchaseDate must be a full unambiguous calendar date in YYYY-MM-DD format.
+- If the OCR only shows month/day without a year, or shows an ambiguous numeric date like 04/06, set purchaseDate to null unless the nearby text clearly identifies it as a purchase/order/issue date.
+- Never use shipping or dispatch dates such as 発送, 出荷, 以降発送, delivery, or shipping labels as purchaseDate.
 - Extract only real purchased items.
 - If uncertain, set memo = "要確認".
 - Currency is JPY unless clearly different.
@@ -74,11 +80,21 @@ OCR text:
 ${ocrText}`;
 }
 
+function promptForGemini(ocrText: string, ocrLanguage: OcrLanguage) {
+  return buildPrompt(ocrText, ocrLanguage);
+}
+
 function getResponseText(response: GeminiResponse) {
   return response.candidates?.[0]?.content?.parts
     ?.map((part) => part.text ?? "")
     .join("")
     .trim();
+}
+
+function summarizeText(text: string, limit = 400) {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (normalized.length <= limit) return normalized;
+  return `${normalized.slice(0, limit)}…`;
 }
 
 function uniqueModels(models: string[]) {
@@ -110,6 +126,35 @@ async function callGemini({
   ocrText: string;
   ocrLanguage: OcrLanguage;
 }) {
+  const startedAt = Date.now();
+  const prompt = promptForGemini(ocrText, ocrLanguage);
+  const requestBody = {
+    contents: [
+      {
+        parts: [
+          {
+            text: prompt
+          }
+        ]
+      }
+    ],
+    generationConfig: {
+      temperature: 0.1,
+      responseMimeType: "application/json",
+      responseJsonSchema: receiptExtractionSchema
+    }
+  };
+
+  console.log("[gemini] request start", {
+    model,
+    ocrLanguage,
+    ocrTextLength: ocrText.length,
+    promptLength: prompt.length,
+    responseMimeType: requestBody.generationConfig.responseMimeType,
+    hasResponseJsonSchema: Boolean(requestBody.generationConfig.responseJsonSchema),
+    ocrPreview: summarizeText(ocrText, 300)
+  });
+
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {
@@ -118,26 +163,17 @@ async function callGemini({
         "Content-Type": "application/json",
         "x-goog-api-key": apiKey
       },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: buildPrompt(ocrText, ocrLanguage)
-              }
-            ]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.1,
-          responseMimeType: "application/json",
-          responseJsonSchema: receiptExtractionSchema
-        }
-      })
+      body: JSON.stringify(requestBody)
     }
   );
 
   const responseBody = (await response.json().catch(() => null)) as GeminiResponse | null;
+  console.log("[gemini] response received", {
+    model,
+    ok: response.ok,
+    status: response.status,
+    durationMs: Date.now() - startedAt
+  });
 
   if (!response.ok) {
     const geminiMessage = responseBody?.error?.message;
@@ -158,13 +194,15 @@ async function callGemini({
 
 export async function extractReceiptWithGemini({
   ocrText,
-  ocrLanguage
+  ocrLanguage,
+  modelOverride
 }: {
   ocrText: string;
   ocrLanguage: OcrLanguage;
+  modelOverride?: GeminiModelId | null;
 }) {
   const apiKey = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
+  const model = modelOverride || process.env.GEMINI_MODEL || "gemini-3-flash-preview";
 
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY is not configured.");
@@ -204,8 +242,19 @@ export async function extractReceiptWithGemini({
     throw new Error("Gemini returned an empty response.");
   }
 
+  console.log("[gemini] raw response", {
+    model,
+    rawLength: rawText.length,
+    rawPreview: summarizeText(rawText)
+  });
+
   const parsed = parseGeminiJson(rawText);
   if (!parsed.ok) {
+    console.log("[gemini] parse failed", {
+      model,
+      error: parsed.error,
+      rawPreview: summarizeText(rawText)
+    });
     return {
       ok: false as const,
       rawText,
@@ -213,9 +262,30 @@ export async function extractReceiptWithGemini({
     };
   }
 
+  const validated = validateReceiptExtraction(parsed.value, { ocrLanguage });
+  console.log("[gemini] validated extraction", {
+    model,
+    storeName: validated.storeName,
+    purchaseDate: validated.purchaseDate,
+    subtotal: validated.subtotal,
+    tax: validated.tax,
+    shipping: validated.shipping,
+    total: validated.total,
+    itemCount: validated.items.length,
+    items: validated.items.map((item) => ({
+      rawName: item.rawName,
+      displayName: item.displayName,
+      category: item.category,
+      quantity: item.quantity,
+      totalPrice: item.totalPrice,
+      isResaleItem: item.isResaleItem,
+      memo: item.memo
+    }))
+  });
+
   return {
     ok: true as const,
     rawText,
-    data: validateReceiptExtraction(parsed.value, { ocrLanguage })
+    data: validated
   };
 }

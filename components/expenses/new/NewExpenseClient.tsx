@@ -200,10 +200,12 @@ function buildMockExpenseData() {
     exchangeRateDate: receiptDate,
     manualAmountOverride: true,
     subtotalOriginal: 440,
+    shipping: 0,
     vatOriginal: 0,
     whtOriginal: 0,
     totalOriginal: 440,
     subtotalBase: 101.2,
+    shippingBase: 0,
     vatBase: 0,
     whtBase: 0,
     totalBase: 101.2,
@@ -376,6 +378,10 @@ export function NewExpenseClient() {
 
       incrementVisionUsage();
       const nextOcrText = visionResult.ocrText.trim();
+      console.log("[expense-new] vision ocr result", {
+        ocrLength: nextOcrText.length,
+        ocrPreview: nextOcrText.slice(0, 500)
+      });
       setOcrText(nextOcrText);
 
       setStatus("gemini");
@@ -396,6 +402,11 @@ export function NewExpenseClient() {
       );
 
       if (!geminiResponse.ok || !geminiResult.success) {
+        console.log("[expense-new] gemini extraction failed", {
+          status: geminiResponse.status,
+          error: geminiResult.success ? null : geminiResult.error ?? null,
+          rawOutput: geminiResult.success ? null : geminiResult.rawOutput ?? null
+        });
         throw new Error(
           geminiResult.success
             ? `Gemini extraction failed with HTTP ${geminiResponse.status}`
@@ -404,6 +415,23 @@ export function NewExpenseClient() {
       }
 
       const data = geminiResult.data;
+      console.log("[expense-new] gemini extraction success", {
+        storeName: data.storeName,
+        purchaseDate: data.purchaseDate,
+        subtotal: data.subtotal,
+        tax: data.tax,
+        total: data.total,
+        itemCount: data.items.length,
+        items: data.items.map((item) => ({
+          rawName: item.rawName,
+          displayName: item.displayName,
+          category: item.category,
+          quantity: item.quantity,
+          totalPrice: item.totalPrice,
+          isResaleItem: item.isResaleItem,
+          memo: item.memo
+        }))
+      });
       const nextItems = data.items.map(itemFromGemini);
       const extractedAmount = data.total ?? data.items.reduce((sum, item) => sum + item.totalPrice, 0);
       setForm((current) => ({
@@ -416,6 +444,9 @@ export function NewExpenseClient() {
         totalOriginal: extractedAmount || current.totalOriginal,
         subtotal: data.subtotal ?? current.subtotal,
         subtotalOriginal: data.subtotal ?? current.subtotalOriginal,
+        shipping: data.shipping ?? current.shipping,
+        shippingBase:
+          data.shipping != null && current.exchangeRate > 0 ? data.shipping * current.exchangeRate : current.shippingBase,
         tax: data.tax ?? current.tax,
         vatOriginal: data.tax ?? current.vatOriginal,
         vendorName: data.storeName ?? current.vendorName,
@@ -492,6 +523,7 @@ export function NewExpenseClient() {
       payerName: resolvedForm.requester || "ไม่ระบุ",
       paymentStatus: paymentStatusValue(resolvedForm.paymentStatus),
       subtotal: amountFields.subtotalOriginal || null,
+      shipping: resolvedForm.shipping ?? 0,
       tax: amountFields.vatOriginal || null,
       withholdingTax: amountFields.whtOriginal || null,
       total: amountFields.totalOriginal,
@@ -507,6 +539,7 @@ export function NewExpenseClient() {
       whtOriginal: amountFields.whtOriginal,
       totalOriginal: amountFields.totalOriginal,
       subtotalBase: amountFields.subtotalBase,
+      shippingBase: resolvedForm.shippingBase ?? 0,
       vatBase: amountFields.vatBase,
       whtBase: amountFields.whtBase,
       totalBase: amountFields.totalBase,
@@ -643,6 +676,7 @@ export function NewExpenseClient() {
           vendorAddress: resolvedForm.vendorAddress,
           detail: resolvedForm.detail,
           subtotal: amountFields.subtotalOriginal || null,
+          shipping: resolvedForm.shipping ?? 0,
           tax: amountFields.vatOriginal || null,
           withholdingTax: amountFields.whtOriginal || null,
           total: amountFields.totalOriginal || null,
@@ -658,6 +692,7 @@ export function NewExpenseClient() {
           whtOriginal: amountFields.whtOriginal,
           totalOriginal: amountFields.totalOriginal,
           subtotalBase: amountFields.subtotalBase,
+          shippingBase: resolvedForm.shippingBase ?? 0,
           vatBase: amountFields.vatBase,
           whtBase: amountFields.whtBase,
           totalBase: amountFields.totalBase,
@@ -760,8 +795,9 @@ export function NewExpenseClient() {
             originalCurrency={form.originalCurrency}
             baseCurrency={form.baseCurrency}
             exchangeRate={form.exchangeRate}
+            mobileLayout="switch"
           />
-          <ExpenseSummarySection form={form} items={items} onChange={setForm} />
+          <ExpenseSummarySection form={form} items={items} onChange={setForm} mobileLayout="switch" />
         </div>
       </section>
 

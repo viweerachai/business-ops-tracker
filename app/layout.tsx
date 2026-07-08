@@ -1,17 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Sarabun } from "next/font/google";
 import { getServerSession } from "next-auth";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { PwaRegister } from "@/components/pwa-register";
 import { authOptions } from "@/lib/auth";
 import "./globals.css";
-
-const sarabun = Sarabun({
-  subsets: ["latin", "thai"],
-  weight: ["300", "400", "500", "600", "700", "800"],
-  variable: "--font-sarabun",
-  display: "swap"
-});
 
 export const metadata: Metadata = {
   title: "Business Ops Tracker",
@@ -43,7 +35,7 @@ export default async function RootLayout({
   const session = await getServerSession(authOptions);
 
   return (
-    <html lang="th" className={`${sarabun.variable} bg-background`}>
+    <html lang="th" className="bg-background">
       <body className="font-sans">
         <AuthProvider session={session}>
           <PwaRegister />

@@ -56,10 +56,12 @@ export type FirestoreExpense = {
   exchangeRateDate?: string | null;
   manualAmountOverride?: boolean;
   subtotalOriginal?: number;
+  shipping?: number | null;
   vatOriginal?: number;
   whtOriginal?: number;
   totalOriginal?: number;
   subtotalBase?: number;
+  shippingBase?: number | null;
   vatBase?: number;
   whtBase?: number;
   totalBase?: number;
@@ -96,5 +98,12 @@ export type FirestoreExpenseItem = {
   productId?: string | null;
   memo: string;
   createdAt: Timestamp;
+  updatedAt: Timestamp;
+};
+
+export type FirestoreProductImage = {
+  key: string;
+  imageDataUrl: string;
+  imageFileName: string;
   updatedAt: Timestamp;
 };

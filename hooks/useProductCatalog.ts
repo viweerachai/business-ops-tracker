@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { ExpenseCurrency, ProductCatalogEntry, ProductCatalogSourceItem } from "@/lib/expenseTypes";
-import { subscribeProductSourceItems, useFirebaseUser } from "@/lib/firebase/firestore";
+import type {
+  ExpenseCurrency,
+  ProductCatalogEntry,
+  ProductCatalogImageMeta,
+  ProductCatalogSourceItem
+} from "@/lib/expenseTypes";
+import { subscribeProductImages, subscribeProductSourceItems, useFirebaseUser } from "@/lib/firebase/firestore";
 
 const supportedCurrencies: ExpenseCurrency[] = ["JPY", "THB"];
 
@@ -68,7 +73,7 @@ function addConvertibleAmounts(entry: ProductCatalogEntry, item: ProductCatalogS
   }
 }
 
-function aggregateProducts(items: ProductCatalogSourceItem[]) {
+function aggregateProducts(items: ProductCatalogSourceItem[], imagesByKey: Record<string, ProductCatalogImageMeta>) {
   const map = new Map<string, ProductCatalogEntry>();
 
   for (const item of items) {
@@ -126,6 +131,14 @@ function aggregateProducts(items: ProductCatalogSourceItem[]) {
     existing.availableCurrencies = Object.keys(existing.totalsByCurrency) as ExpenseCurrency[];
   }
 
+  for (const [key, image] of Object.entries(imagesByKey)) {
+    const entry = map.get(key);
+    if (!entry) continue;
+    entry.imageDataUrl = image.imageDataUrl;
+    entry.imageFileName = image.imageFileName;
+    entry.imageUpdatedAt = image.imageUpdatedAt;
+  }
+
   return Array.from(map.values()).sort((a, b) => {
     if (a.latestPurchaseDate !== b.latestPurchaseDate) {
       return b.latestPurchaseDate.localeCompare(a.latestPurchaseDate);
@@ -140,6 +153,7 @@ function aggregateProducts(items: ProductCatalogSourceItem[]) {
 export function useProductCatalog(activeBusinessId?: string | null) {
   const { user, loading: authLoading, error: authError } = useFirebaseUser();
   const [sourceItems, setSourceItems] = useState<ProductCatalogSourceItem[]>([]);
+  const [imagesByKey, setImagesByKey] = useState<Record<string, ProductCatalogImageMeta>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(authError);
 
@@ -150,17 +164,21 @@ export function useProductCatalog(activeBusinessId?: string | null) {
   useEffect(() => {
     if (!user || !activeBusinessId) {
       setSourceItems([]);
+      setImagesByKey({});
       setLoading(false);
       return;
     }
 
-    let unsubscribe: () => void = () => {};
+    let unsubscribeItems: () => void = () => {};
+    let unsubscribeImages: () => void = () => {};
     let cancelled = false;
 
+    setSourceItems([]);
+    setImagesByKey({});
     setLoading(true);
     setError(null);
 
-    unsubscribe = subscribeProductSourceItems(
+    unsubscribeItems = subscribeProductSourceItems(
       user,
       activeBusinessId,
       (items) => {
@@ -175,18 +193,34 @@ export function useProductCatalog(activeBusinessId?: string | null) {
       }
     );
 
+    unsubscribeImages = subscribeProductImages(
+      user,
+      activeBusinessId,
+      (images) => {
+        if (cancelled) return;
+        setImagesByKey(images);
+      },
+      (nextError) => {
+        if (cancelled) return;
+        setError(nextError.message);
+        setLoading(false);
+      }
+    );
+
     return () => {
       cancelled = true;
-      unsubscribe();
+      unsubscribeItems();
+      unsubscribeImages();
     };
   }, [activeBusinessId, user]);
 
-  const products = useMemo(() => aggregateProducts(sourceItems), [sourceItems]);
+  const products = useMemo(() => aggregateProducts(sourceItems, imagesByKey), [imagesByKey, sourceItems]);
 
   return {
     products,
     sourceItems,
     loading: authLoading || loading,
-    error
+    error,
+    user
   };
 }

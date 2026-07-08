@@ -26,8 +26,14 @@ import {
   type Unsubscribe
 } from "firebase/firestore";
 import { getFirebaseAuth, getFirestoreDb, hasFirebaseConfig } from "@/lib/firebase/client";
-import type { FirestoreBusiness, FirestoreExpense, FirestoreExpenseItem } from "@/lib/firebase/types";
-import type { Business, Expense, ExpenseItem, ProductCatalogSourceItem } from "@/lib/expenseTypes";
+import type { FirestoreBusiness, FirestoreExpense, FirestoreExpenseItem, FirestoreProductImage } from "@/lib/firebase/types";
+import type {
+  Business,
+  Expense,
+  ExpenseItem,
+  ProductCatalogImageMeta,
+  ProductCatalogSourceItem
+} from "@/lib/expenseTypes";
 import { CATEGORIES } from "@/lib/types/receipt";
 import { createId } from "@/lib/utils";
 
@@ -60,6 +66,9 @@ function formatFirebaseAuthError(error: unknown) {
   if (code.includes("auth/invalid-credential") || message.includes("INVALID_IDP_RESPONSE")) {
     return "Firebase ไม่รับ Google token นี้ กรุณาตรวจ Google provider ใน Firebase และลองเข้าสู่ระบบใหม่";
   }
+  if (code.includes("auth/invalid-custom-token")) {
+    return "Firebase custom token ไม่ผ่าน ลองรีเฟรชหน้าแล้วล็อกอินใหม่อีกครั้ง";
+  }
   if (code.includes("auth/operation-not-allowed")) {
     return "Firebase Google sign-in ยังไม่ถูกเปิดใช้งานในโปรเจกต์นี้";
   }
@@ -85,12 +94,36 @@ export function expensePath(uid: string, businessId: string, expenseId: string) 
   return `users/${uid}/businesses/${businessId}/expenses/${expenseId}`;
 }
 
+export function productImagePath(uid: string, businessId: string, key: string) {
+  return `users/${uid}/businesses/${businessId}/product-images/${encodeURIComponent(key)}`;
+}
+
 export function appSettingsPath(uid: string) {
   return `users/${uid}/settings/app`;
 }
 
 function db() {
   return getFirestoreDb();
+}
+
+async function clearFirebaseAuthPersistence(auth: ReturnType<typeof getFirebaseAuth>) {
+  try {
+    if (auth.currentUser) {
+      await firebaseSignOut(auth);
+    }
+  } catch (error) {
+    console.warn("[firebase-auth] firebase sign-out during recovery failed", error);
+  }
+
+  if (typeof indexedDB !== "undefined") {
+    try {
+      indexedDB.deleteDatabase("firebaseLocalStorageDb");
+      indexedDB.deleteDatabase("firebase-heartbeat-database");
+      console.log("[firebase-auth] cleared firebase auth persistence");
+    } catch (error) {
+      console.warn("[firebase-auth] failed to clear firebase auth persistence", error);
+    }
+  }
 }
 
 function defaultBusinessName(user: User) {
@@ -149,6 +182,7 @@ export function mapExpenseDoc(data: FirestoreExpense): Expense {
     payerName: data.requesterName,
     paymentStatus: data.status === "confirmed" ? "paid" : data.status === "review_needed" ? "review_needed" : data.status === "failed" ? "failed" : "draft",
     subtotal: data.subtotal,
+    shipping: data.shipping ?? null,
     tax: data.tax,
     withholdingTax: data.withholdingTax,
     total: data.total ?? 0,
@@ -164,6 +198,7 @@ export function mapExpenseDoc(data: FirestoreExpense): Expense {
     whtOriginal: data.whtOriginal ?? data.withholdingTax ?? 0,
     totalOriginal: data.totalOriginal ?? data.total ?? 0,
     subtotalBase: data.subtotalBase ?? data.subtotal ?? 0,
+    shippingBase: data.shippingBase ?? null,
     vatBase: data.vatBase ?? data.tax ?? 0,
     whtBase: data.whtBase ?? data.withholdingTax ?? 0,
     totalBase: data.totalBase ?? data.total ?? 0,
@@ -201,6 +236,14 @@ export function mapExpenseItemDoc(data: FirestoreExpenseItem): ExpenseItem {
     isResaleItem: data.isResaleItem,
     memo: data.memo,
     createdAt: timestampToIso(data.createdAt)
+  };
+}
+
+export function mapProductImageDoc(data: FirestoreProductImage): ProductCatalogImageMeta {
+  return {
+    imageDataUrl: data.imageDataUrl,
+    imageFileName: data.imageFileName,
+    imageUpdatedAt: timestampToIso(data.updatedAt)
   };
 }
 
@@ -329,11 +372,13 @@ export function useFirebaseUser() {
           idToken: tokenDebug(session.googleIdToken)
         });
         setLoading(true);
-        const signInPromise = (async () => {
+        const signInWithFreshToken = async (attempt: number) => {
           const tokenResponse = await fetch("/api/firebase-custom-token", {
-            method: "GET",
+            method: "POST",
+            cache: "no-store",
             headers: {
-              "cache-control": "no-cache"
+              "cache-control": "no-cache",
+              "pragma": "no-cache"
             }
           });
           if (!tokenResponse.ok) {
@@ -344,7 +389,24 @@ export function useFirebaseUser() {
             success?: boolean;
             firebaseCustomToken?: string;
             error?: string;
+            debug?: {
+              aud?: string | null;
+              exp?: number | null;
+              iat?: number | null;
+              iss?: string | null;
+              projectId?: string | null;
+              serverNow?: number | null;
+              uid?: string | null;
+            };
           };
+
+          console.log("[firebase-auth] custom token response", {
+            attempt,
+            success: Boolean(tokenPayload.success),
+            tokenLength: tokenPayload.firebaseCustomToken?.length ?? 0,
+            error: tokenPayload.error ?? null,
+            debug: tokenPayload.debug ?? null
+          });
 
           if (!tokenPayload.success || !tokenPayload.firebaseCustomToken) {
             throw new Error(tokenPayload.error || "Could not create Firebase custom token.");
@@ -352,6 +414,21 @@ export function useFirebaseUser() {
 
           const result = await signInWithCustomToken(auth, tokenPayload.firebaseCustomToken);
           return result.user;
+        };
+
+        const signInPromise = (async () => {
+          try {
+            return await signInWithFreshToken(1);
+          } catch (error) {
+            const code = typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code ?? "") : "";
+            if (!code.includes("auth/invalid-custom-token")) {
+              throw error;
+            }
+
+            console.warn("[firebase-auth] invalid custom token, clearing auth state and retrying once");
+            await clearFirebaseAuthPersistence(auth);
+            return await signInWithFreshToken(2);
+          }
         })();
 
         firebaseAuthSyncInFlight = signInPromise;
@@ -627,6 +704,46 @@ export function subscribeProductSourceItems(
       });
     },
     onError
+  );
+}
+
+export function subscribeProductImages(
+  user: User,
+  businessId: string,
+  callback: (images: Record<string, ProductCatalogImageMeta>) => void,
+  onError: (error: Error) => void
+): Unsubscribe {
+  const imagesRef = collection(db(), "users", user.uid, "businesses", businessId, "product-images");
+  return onSnapshot(
+    imagesRef,
+    (snapshot) => {
+      const images: Record<string, ProductCatalogImageMeta> = {};
+      for (const imageDoc of snapshot.docs) {
+        const data = imageDoc.data() as FirestoreProductImage;
+        const image = mapProductImageDoc(data);
+        images[data.key] = image;
+      }
+      callback(images);
+    },
+    onError
+  );
+}
+
+export async function saveProductImageDoc(
+  user: { uid: string },
+  businessId: string,
+  key: string,
+  input: { imageDataUrl: string; imageFileName: string }
+) {
+  await setDoc(
+    doc(db(), productImagePath(user.uid, businessId, key)),
+    {
+      key,
+      imageDataUrl: input.imageDataUrl,
+      imageFileName: input.imageFileName,
+      updatedAt: serverTimestamp()
+    },
+    { merge: true }
   );
 }
 
